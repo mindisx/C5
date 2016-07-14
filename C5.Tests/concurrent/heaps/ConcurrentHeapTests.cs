@@ -21,16 +21,97 @@
 
 using System;
 using C5;
-using C5.concurrent;
+using System.Collections.Generic;
 using NUnit.Framework;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace C5UnitTests.concurrent.heaps
 {
     using CollectionOfInt = C5.concurrent.IntervalHeap<int>;
-    [TestFixture(MemoryType.Normal)]
-    [TestFixture(MemoryType.Strict)]
-    [TestFixture(MemoryType.Safe)]
-    class ConcurrentHeapTests
+    [TestFixture]
+    public class SequentialTests
     {
+        IConcurrentPriorityQueue<int> queue;
+
+        [SetUp]
+        public void Init() { queue = new C5.concurrent.IntervalHeap<int>(); }
+
+        [TearDown]
+        public void Dispose() { queue = null; }
+
+        [Test]
+        public void AddRemoveMaxTest()
+        {
+            queue.Add(20);
+            queue.Add(1);
+            queue.Add(19);
+            Assert.AreEqual(20, queue.DeleteMax());
+        }
+
+        [Test]
+        public void AddRemoveMinTest()
+        {
+            queue.Add(20);
+            queue.Add(1);
+            queue.Add(19);
+            Assert.AreEqual(1, queue.DeleteMin());
+        }
+
+        [Test]
+        public void SizeTest()
+        {
+            queue.Add(20);
+            queue.Add(1);
+            queue.Add(19);
+            Assert.AreEqual(3, queue.Count());
+        }
     }
+
+
+
+
+    //[TestFixture]
+    //class ConcurrencyTest
+    //{
+    //    IConcurrentPriorityQueue<int> queue;
+
+    //    [SetUp]
+    //    public void Init() { queue = new C5.concurrent.IntervalHeap<int>(); }
+
+    //    [TearDown]
+    //    public void Dispose() { queue = null; }
+
+
+    //    /// <summary>
+    //    /// Scalability test.
+    //    /// run test on concurent interval heap with 4 threads
+    //    /// and perform 1000 random operation.
+    //    /// </summary>
+    //    [Test]
+    //    public void SimpleTest()
+    //    {
+    //        Random rnd = new Random();
+    //        List<int> runs = new List<int>(4); //dummy list. 
+
+    //        Parallel.ForEach(runs, r => {
+    //            for(int i = 0; i < 1000; i++) {
+    //                int random = rnd.Next(1, 3);
+
+    //                switch (random)
+    //                {
+    //                    case 1:
+    //                        //add operation
+    //                        break;
+    //                    case 2:
+    //                        //remove max operation
+    //                        break;
+    //                    case 3:
+    //                        //remove min operation;
+    //                        break;
+    //                }
+    //            }
+    //        });
+    //    }
+    //}
 }
