@@ -64,54 +64,60 @@ namespace C5UnitTests.concurrent.heaps
             queue.Add(20);
             queue.Add(1);
             queue.Add(19);
-            Assert.AreEqual(3, queue.Count());
+            Assert.AreEqual(3, queue.Count);
         }
     }
 
 
 
 
-    //[TestFixture]
-    //class ConcurrencyTest
-    //{
-    //    IConcurrentPriorityQueue<int> queue;
+    /// <summary>
+    /// Concurrent tests that should cover Add, RemoveMax, RemoveMin 
+    /// operation by several threads.
+    /// </summary>
+    [TestFixture]
+    class ConcurrencyTest
+    {
+        IConcurrentPriorityQueue<int> queue;
 
-    //    [SetUp]
-    //    public void Init() { queue = new C5.concurrent.IntervalHeap<int>(); }
+        [SetUp]
+        public void Init() { queue = new C5.concurrent.IntervalHeap<int>(); }
 
-    //    [TearDown]
-    //    public void Dispose() { queue = null; }
+        [TearDown]
+        public void Dispose() { queue = null; }
 
 
-    //    /// <summary>
-    //    /// Scalability test.
-    //    /// run test on concurent interval heap with 4 threads
-    //    /// and perform 1000 random operation.
-    //    /// </summary>
-    //    [Test]
-    //    public void SimpleTest()
-    //    {
-    //        Random rnd = new Random();
-    //        List<int> runs = new List<int>(4); //dummy list. 
+        /// <summary>
+        /// Scalability test.
+        /// run test on concurent interval heap with 4 threads
+        /// and perform 1000 random operation.
+        /// </summary>
+        [Test]
+        public void RandomOperationTest()
+        {
+            Random rnd = new Random();
+            List<int> runs = new List<int>(4); //dummy list. 
 
-    //        Parallel.ForEach(runs, r => {
-    //            for(int i = 0; i < 1000; i++) {
-    //                int random = rnd.Next(1, 3);
+            Parallel.ForEach(runs, r =>
+            {
+                for (int i = 0; i < 1000; i++)
+                {
+                    int random = rnd.Next(1, 3);
 
-    //                switch (random)
-    //                {
-    //                    case 1:
-    //                        //add operation
-    //                        break;
-    //                    case 2:
-    //                        //remove max operation
-    //                        break;
-    //                    case 3:
-    //                        //remove min operation;
-    //                        break;
-    //                }
-    //            }
-    //        });
-    //    }
-    //}
+                    switch (random)
+                    {
+                        case 1:
+                            //add operation
+                            break;
+                        case 2:
+                            //remove max operation
+                            break;
+                        case 3:
+                            //remove min operation;
+                            break;
+                    }
+                }
+            });
+        }
+    }
 }
