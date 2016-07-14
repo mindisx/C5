@@ -44,8 +44,11 @@ namespace C5UnitTests.concurrent.heaps
         public void AddRemoveMaxTest()
         {
             queue.Add(20);
+            Assert.IsTrue(queue.Check());
             queue.Add(1);
+            Assert.IsTrue(queue.Check());
             queue.Add(19);
+            Assert.IsTrue(queue.Check());
             Assert.AreEqual(20, queue.DeleteMax());
         }
 
@@ -53,8 +56,11 @@ namespace C5UnitTests.concurrent.heaps
         public void AddRemoveMinTest()
         {
             queue.Add(20);
+            Assert.IsTrue(queue.Check());
             queue.Add(1);
+            Assert.IsTrue(queue.Check());
             queue.Add(19);
+            Assert.IsTrue(queue.Check());
             Assert.AreEqual(1, queue.DeleteMin());
         }
 
@@ -62,8 +68,11 @@ namespace C5UnitTests.concurrent.heaps
         public void SizeTest()
         {
             queue.Add(20);
+            Assert.IsTrue(queue.Check());
             queue.Add(1);
+            Assert.IsTrue(queue.Check());
             queue.Add(19);
+            Assert.IsTrue(queue.Check());
             Assert.AreEqual(3, queue.Count);
         }
     }
