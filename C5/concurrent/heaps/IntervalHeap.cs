@@ -25,7 +25,7 @@ using SCG = System.Collections.Generic;
 namespace C5.concurrent
 {
     [Serializable]
-    class IntervalHeap<T> : CollectionValueBase<T>, IConcurrentPriorityQueue<T> 
+    class IntervalHeap<T> : CollectionValueBase<T>, IConcurrentPriorityQueue<T>
     {
         #region Events
 
@@ -45,6 +45,9 @@ namespace C5.concurrent
 
             public override string ToString() { return string.Format("[{0}; {1}]", first, last); }
         }
+
+        //lock object used to lock the methods, to make them thread safe. 
+        private Object thisLock = new Object();
 
         int stamp;
 
@@ -286,8 +289,11 @@ namespace C5.concurrent
         /// <returns>The removed item.</returns>
         public T DeleteMin()
         {
-            IPriorityQueueHandle<T> handle = null;
-            return DeleteMin(out handle);
+            lock (thisLock)
+            {
+                IPriorityQueueHandle<T> handle = null;
+                return DeleteMin(out handle);
+            }
         }
 
 
@@ -314,8 +320,11 @@ namespace C5.concurrent
         /// <returns>The removed item.</returns>
         public T DeleteMax()
         {
-            IPriorityQueueHandle<T> handle = null;
-            return DeleteMax(out handle);
+            lock (thisLock)
+            {
+                IPriorityQueueHandle<T> handle = null;
+                return DeleteMax(out handle);
+            }
         }
 
 
@@ -364,14 +373,17 @@ namespace C5.concurrent
         /// <returns>True</returns>
         public bool Add(T item)
         {
-            stamp++;
-            if (add(null, item))
+            lock (thisLock)
             {
-                raiseItemsAdded(item, 1);
-                raiseCollectionChanged();
-                return true;
+                stamp++;
+                if (add(null, item))
+                {
+                    raiseItemsAdded(item, 1);
+                    raiseCollectionChanged();
+                    return true;
+                }
+                return false;
             }
-            return false;
         }
 
         private bool add(Handle itemhandle, T item)
@@ -456,16 +468,19 @@ namespace C5.concurrent
         /// <param name="items">The items to add</param>
         public void AddAll(SCG.IEnumerable<T> items)
         {
-            stamp++;
-            int oldsize = size;
-            foreach (T item in items)
-                add(null, item);
-            if (size != oldsize)
+            lock (thisLock)
             {
-                if ((ActiveEvents & EventTypeEnum.Added) != 0)
-                    foreach (T item in items)
-                        raiseItemsAdded(item, 1);
-                raiseCollectionChanged();
+                stamp++;
+                int oldsize = size;
+                foreach (T item in items)
+                    add(null, item);
+                if (size != oldsize)
+                {
+                    if ((ActiveEvents & EventTypeEnum.Added) != 0)
+                        foreach (T item in items)
+                            raiseItemsAdded(item, 1);
+                    raiseCollectionChanged();
+                }
             }
         }
 
@@ -711,20 +726,23 @@ namespace C5.concurrent
         /// <returns>True since item will always be added unless the call throws an exception.</returns>
         public bool Add(ref IPriorityQueueHandle<T> handle, T item)
         {
-            stamp++;
-            Handle myhandle = (Handle)handle;
-            if (myhandle == null)
-                handle = myhandle = new Handle();
-            else
-                if (myhandle.index != -1)
-                throw new InvalidPriorityQueueHandleException("Handle not valid for reuse");
-            if (add(myhandle, item))
+            lock (thisLock)
             {
-                raiseItemsAdded(item, 1);
-                raiseCollectionChanged();
-                return true;
+                stamp++;
+                Handle myhandle = (Handle)handle;
+                if (myhandle == null)
+                    handle = myhandle = new Handle();
+                else
+                    if (myhandle.index != -1)
+                    throw new InvalidPriorityQueueHandleException("Handle not valid for reuse");
+                if (add(myhandle, item))
+                {
+                    raiseItemsAdded(item, 1);
+                    raiseCollectionChanged();
+                    return true;
+                }
+                return false;
             }
-            return false;
         }
 
         /// <summary>
@@ -735,91 +753,94 @@ namespace C5.concurrent
         /// <returns>The deleted item</returns>
         public T Delete(IPriorityQueueHandle<T> handle)
         {
-            stamp++;
-            int cell;
-            bool isfirst;
-            Handle myhandle = checkHandle(handle, out cell, out isfirst);
-
-            T retval;
-            myhandle.index = -1;
-            int lastcell = (size - 1) / 2;
-
-            if (cell == lastcell)
+            lock (thisLock)
             {
-                if (isfirst)
+                stamp++;
+                int cell;
+                bool isfirst;
+                Handle myhandle = checkHandle(handle, out cell, out isfirst);
+
+                T retval;
+                myhandle.index = -1;
+                int lastcell = (size - 1) / 2;
+
+                if (cell == lastcell)
                 {
-                    retval = heap[cell].first;
-                    if (size % 2 == 0)
+                    if (isfirst)
                     {
-                        updateFirst(cell, heap[cell].last, heap[cell].lasthandle);
-                        heap[cell].last = default(T);
-                        heap[cell].lasthandle = null;
+                        retval = heap[cell].first;
+                        if (size % 2 == 0)
+                        {
+                            updateFirst(cell, heap[cell].last, heap[cell].lasthandle);
+                            heap[cell].last = default(T);
+                            heap[cell].lasthandle = null;
+                        }
+                        else
+                        {
+                            heap[cell].first = default(T);
+                            heap[cell].firsthandle = null;
+                        }
                     }
                     else
                     {
-                        heap[cell].first = default(T);
-                        heap[cell].firsthandle = null;
+                        retval = heap[cell].last;
+                        heap[cell].last = default(T);
+                        heap[cell].lasthandle = null;
                     }
+                    size--;
+                }
+                else if (isfirst)
+                {
+                    retval = heap[cell].first;
+
+                    if (size % 2 == 0)
+                    {
+                        updateFirst(cell, heap[lastcell].last, heap[lastcell].lasthandle);
+                        heap[lastcell].last = default(T);
+                        heap[lastcell].lasthandle = null;
+                    }
+                    else
+                    {
+                        updateFirst(cell, heap[lastcell].first, heap[lastcell].firsthandle);
+                        heap[lastcell].first = default(T);
+                        heap[lastcell].firsthandle = null;
+                    }
+
+                    size--;
+                    if (heapifyMin(cell))
+                        bubbleUpMax(cell);
+                    else
+                        bubbleUpMin(cell);
                 }
                 else
                 {
                     retval = heap[cell].last;
-                    heap[cell].last = default(T);
-                    heap[cell].lasthandle = null;
+
+                    if (size % 2 == 0)
+                    {
+                        updateLast(cell, heap[lastcell].last, heap[lastcell].lasthandle);
+                        heap[lastcell].last = default(T);
+                        heap[lastcell].lasthandle = null;
+                    }
+                    else
+                    {
+                        updateLast(cell, heap[lastcell].first, heap[lastcell].firsthandle);
+                        heap[lastcell].first = default(T);
+                        heap[lastcell].firsthandle = null;
+                    }
+
+                    size--;
+                    if (heapifyMax(cell))
+                        bubbleUpMin(cell);
+                    else
+                        bubbleUpMax(cell);
                 }
-                size--;
+
+                raiseItemsRemoved(retval, 1);
+                raiseCollectionChanged();
+
+                return retval;
             }
-            else if (isfirst)
-            {
-                retval = heap[cell].first;
-
-                if (size % 2 == 0)
-                {
-                    updateFirst(cell, heap[lastcell].last, heap[lastcell].lasthandle);
-                    heap[lastcell].last = default(T);
-                    heap[lastcell].lasthandle = null;
-                }
-                else
-                {
-                    updateFirst(cell, heap[lastcell].first, heap[lastcell].firsthandle);
-                    heap[lastcell].first = default(T);
-                    heap[lastcell].firsthandle = null;
-                }
-
-                size--;
-                if (heapifyMin(cell))
-                    bubbleUpMax(cell);
-                else
-                    bubbleUpMin(cell);
-            }
-            else
-            {
-                retval = heap[cell].last;
-
-                if (size % 2 == 0)
-                {
-                    updateLast(cell, heap[lastcell].last, heap[lastcell].lasthandle);
-                    heap[lastcell].last = default(T);
-                    heap[lastcell].lasthandle = null;
-                }
-                else
-                {
-                    updateLast(cell, heap[lastcell].first, heap[lastcell].firsthandle);
-                    heap[lastcell].first = default(T);
-                    heap[lastcell].firsthandle = null;
-                }
-
-                size--;
-                if (heapifyMax(cell))
-                    bubbleUpMin(cell);
-                else
-                    bubbleUpMax(cell);
-            }
-
-            raiseItemsRemoved(retval, 1);
-            raiseCollectionChanged();
-
-            return retval;
         }
 
         private Handle checkHandle(IPriorityQueueHandle<T> handle, out int cell, out bool isfirst)
@@ -848,55 +869,58 @@ namespace C5.concurrent
         /// <returns>The old item</returns>
         public T Replace(IPriorityQueueHandle<T> handle, T item)
         {
-            stamp++;
-            int cell;
-            bool isfirst;
-            checkHandle(handle, out cell, out isfirst);
-            if (size == 0)
-                throw new NoSuchItemException();
-
-            T retval;
-
-            if (isfirst)
+            lock (thisLock)
             {
-                retval = heap[cell].first;
-                heap[cell].first = item;
-                if (size == 1)
+                stamp++;
+                int cell;
+                bool isfirst;
+                checkHandle(handle, out cell, out isfirst);
+                if (size == 0)
+                    throw new NoSuchItemException();
+
+                T retval;
+
+                if (isfirst)
                 {
-                }
-                else if (size == 2 * cell + 1) // cell == lastcell
-                {
-                    int p = (cell + 1) / 2 - 1;
-                    if (comparer.Compare(item, heap[p].last) > 0)
+                    retval = heap[cell].first;
+                    heap[cell].first = item;
+                    if (size == 1)
                     {
-                        Handle thehandle = heap[cell].firsthandle;
-                        updateFirst(cell, heap[p].last, heap[p].lasthandle);
-                        updateLast(p, item, thehandle);
-                        bubbleUpMax(p);
                     }
+                    else if (size == 2 * cell + 1) // cell == lastcell
+                    {
+                        int p = (cell + 1) / 2 - 1;
+                        if (comparer.Compare(item, heap[p].last) > 0)
+                        {
+                            Handle thehandle = heap[cell].firsthandle;
+                            updateFirst(cell, heap[p].last, heap[p].lasthandle);
+                            updateLast(p, item, thehandle);
+                            bubbleUpMax(p);
+                        }
+                        else
+                            bubbleUpMin(cell);
+                    }
+                    else if (heapifyMin(cell))
+                        bubbleUpMax(cell);
                     else
                         bubbleUpMin(cell);
                 }
-                else if (heapifyMin(cell))
-                    bubbleUpMax(cell);
                 else
-                    bubbleUpMin(cell);
-            }
-            else
-            {
-                retval = heap[cell].last;
-                heap[cell].last = item;
-                if (heapifyMax(cell))
-                    bubbleUpMin(cell);
-                else
-                    bubbleUpMax(cell);
-            }
+                {
+                    retval = heap[cell].last;
+                    heap[cell].last = item;
+                    if (heapifyMax(cell))
+                        bubbleUpMin(cell);
+                    else
+                        bubbleUpMax(cell);
+                }
 
-            raiseItemsRemoved(retval, 1);
-            raiseItemsAdded(item, 1);
-            raiseCollectionChanged();
+                raiseItemsRemoved(retval, 1);
+                raiseItemsAdded(item, 1);
+                raiseCollectionChanged();
 
-            return retval;
+                return retval;
+            }
         }
 
         /// <summary>
@@ -941,46 +965,49 @@ namespace C5.concurrent
         /// <returns>The removed item.</returns>
         public T DeleteMin(out IPriorityQueueHandle<T> handle)
         {
-            stamp++;
-            if (size == 0)
-                throw new NoSuchItemException();
-
-            T retval = heap[0].first;
-            Handle myhandle = heap[0].firsthandle;
-            handle = myhandle;
-            if (myhandle != null)
-                myhandle.index = -1;
-
-            if (size == 1)
+            lock (thisLock)
             {
-                size = 0;
-                heap[0].first = default(T);
-                heap[0].firsthandle = null;
-            }
-            else
-            {
-                int lastcell = (size - 1) / 2;
+                stamp++;
+                if (size == 0)
+                    throw new NoSuchItemException();
 
-                if (size % 2 == 0)
+                T retval = heap[0].first;
+                Handle myhandle = heap[0].firsthandle;
+                handle = myhandle;
+                if (myhandle != null)
+                    myhandle.index = -1;
+
+                if (size == 1)
                 {
-                    updateFirst(0, heap[lastcell].last, heap[lastcell].lasthandle);
-                    heap[lastcell].last = default(T);
-                    heap[lastcell].lasthandle = null;
+                    size = 0;
+                    heap[0].first = default(T);
+                    heap[0].firsthandle = null;
                 }
                 else
                 {
-                    updateFirst(0, heap[lastcell].first, heap[lastcell].firsthandle);
-                    heap[lastcell].first = default(T);
-                    heap[lastcell].firsthandle = null;
+                    int lastcell = (size - 1) / 2;
+
+                    if (size % 2 == 0)
+                    {
+                        updateFirst(0, heap[lastcell].last, heap[lastcell].lasthandle);
+                        heap[lastcell].last = default(T);
+                        heap[lastcell].lasthandle = null;
+                    }
+                    else
+                    {
+                        updateFirst(0, heap[lastcell].first, heap[lastcell].firsthandle);
+                        heap[lastcell].first = default(T);
+                        heap[lastcell].firsthandle = null;
+                    }
+
+                    size--;
+                    heapifyMin(0);
                 }
 
-                size--;
-                heapifyMin(0);
+                raiseItemsRemoved(retval, 1);
+                raiseCollectionChanged();
+                return retval;
             }
-
-            raiseItemsRemoved(retval, 1);
-            raiseCollectionChanged();
-            return retval;
 
         }
 
@@ -991,52 +1018,55 @@ namespace C5.concurrent
         /// <returns>The removed item.</returns>
         public T DeleteMax(out IPriorityQueueHandle<T> handle)
         {
-            stamp++;
-            if (size == 0)
-                throw new NoSuchItemException();
-
-            T retval;
-            Handle myhandle;
-
-            if (size == 1)
+            lock (thisLock)
             {
-                size = 0;
-                retval = heap[0].first;
-                myhandle = heap[0].firsthandle;
-                if (myhandle != null)
-                    myhandle.index = -1;
-                heap[0].first = default(T);
-                heap[0].firsthandle = null;
-            }
-            else
-            {
-                retval = heap[0].last;
-                myhandle = heap[0].lasthandle;
-                if (myhandle != null)
-                    myhandle.index = -1;
+                stamp++;
+                if (size == 0)
+                    throw new NoSuchItemException();
 
-                int lastcell = (size - 1) / 2;
+                T retval;
+                Handle myhandle;
 
-                if (size % 2 == 0)
+                if (size == 1)
                 {
-                    updateLast(0, heap[lastcell].last, heap[lastcell].lasthandle);
-                    heap[lastcell].last = default(T);
-                    heap[lastcell].lasthandle = null;
+                    size = 0;
+                    retval = heap[0].first;
+                    myhandle = heap[0].firsthandle;
+                    if (myhandle != null)
+                        myhandle.index = -1;
+                    heap[0].first = default(T);
+                    heap[0].firsthandle = null;
                 }
                 else
                 {
-                    updateLast(0, heap[lastcell].first, heap[lastcell].firsthandle);
-                    heap[lastcell].first = default(T);
-                    heap[lastcell].firsthandle = null;
-                }
+                    retval = heap[0].last;
+                    myhandle = heap[0].lasthandle;
+                    if (myhandle != null)
+                        myhandle.index = -1;
 
-                size--;
-                heapifyMax(0);
+                    int lastcell = (size - 1) / 2;
+
+                    if (size % 2 == 0)
+                    {
+                        updateLast(0, heap[lastcell].last, heap[lastcell].lasthandle);
+                        heap[lastcell].last = default(T);
+                        heap[lastcell].lasthandle = null;
+                    }
+                    else
+                    {
+                        updateLast(0, heap[lastcell].first, heap[lastcell].firsthandle);
+                        heap[lastcell].first = default(T);
+                        heap[lastcell].firsthandle = null;
+                    }
+
+                    size--;
+                    heapifyMax(0);
+                }
+                raiseItemsRemoved(retval, 1);
+                raiseCollectionChanged();
+                handle = myhandle;
+                return retval;
             }
-            raiseItemsRemoved(retval, 1);
-            raiseCollectionChanged();
-            handle = myhandle;
-            return retval;
         }
 
         #endregion
