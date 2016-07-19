@@ -626,13 +626,16 @@ namespace C5.concurrent
         /// <returns>True if check does not fail.</returns>
         public bool Check()
         {
-            if (size == 0)
-                return true;
+            lock (thisLock)
+            {
+                if (size == 0)
+                    return true;
 
-            if (size == 1)
-                return (object)(heap[0].first) != null;
+                if (size == 1)
+                    return (object)(heap[0].first) != null;
 
-            return check(0, heap[0].first, heap[0].last);
+                return check(0, heap[0].first, heap[0].last);
+            }
         }
 
         #endregion
@@ -664,11 +667,14 @@ namespace C5.concurrent
         {
             get
             {
-                int cell;
-                bool isfirst;
-                checkHandle(handle, out cell, out isfirst);
+                lock (thisLock)
+                {
+                    int cell;
+                    bool isfirst;
+                    checkHandle(handle, out cell, out isfirst);
 
-                return isfirst ? heap[cell].first : heap[cell].last;
+                    return isfirst ? heap[cell].first : heap[cell].last;
+                }
             }
             set
             {
