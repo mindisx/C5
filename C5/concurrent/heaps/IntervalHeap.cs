@@ -289,11 +289,8 @@ namespace C5.concurrent
         /// <returns>The removed item.</returns>
         public T DeleteMin()
         {
-            lock (thisLock)
-            {
-                IPriorityQueueHandle<T> handle = null;
-                return DeleteMin(out handle);
-            }
+            IPriorityQueueHandle<T> handle = null;
+            return DeleteMin(out handle);
         }
 
 
@@ -320,11 +317,8 @@ namespace C5.concurrent
         /// <returns>The removed item.</returns>
         public T DeleteMax()
         {
-            lock (thisLock)
-            {
-                IPriorityQueueHandle<T> handle = null;
-                return DeleteMax(out handle);
-            }
+            IPriorityQueueHandle<T> handle = null;
+            return DeleteMax(out handle);
         }
 
 
