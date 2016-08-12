@@ -25,7 +25,7 @@ using SCG = System.Collections.Generic;
 namespace C5.concurrent
 {
     [Serializable]
-    class IntervalHeap<T> : CollectionValueBase<T>, IConcurrentPriorityQueue<T>
+    class ConcurrentIntervalHeap<T> : CollectionValueBase<T>, IConcurrentPriorityQueue<T>
     {
         #region Events
 
@@ -219,7 +219,7 @@ namespace C5.concurrent
         /// <summary>
         /// Create an interval heap with natural item comparer and default initial capacity (16)
         /// </summary>
-		public IntervalHeap(MemoryType memoryType = MemoryType.Normal) : this(16, memoryType) { }
+		public ConcurrentIntervalHeap(MemoryType memoryType = MemoryType.Normal) : this(16, memoryType) { }
 
 
         /// <summary>
@@ -227,7 +227,7 @@ namespace C5.concurrent
         /// </summary>
 		/// <param name="comparer">The external comparer</param>
 		/// <param name = "memoryType"></param>
-		public IntervalHeap(SCG.IComparer<T> comparer, MemoryType memoryType = MemoryType.Normal) : this(16, comparer, memoryType) { }
+		public ConcurrentIntervalHeap(SCG.IComparer<T> comparer, MemoryType memoryType = MemoryType.Normal) : this(16, comparer, memoryType) { }
 
 
         //TODO: maybe remove
@@ -236,7 +236,7 @@ namespace C5.concurrent
         /// </summary>
         /// <param name="capacity">The initial capacity</param>
 		/// <param name = "memoryType"></param>
-		public IntervalHeap(int capacity, MemoryType memoryType = MemoryType.Normal) : this(capacity, SCG.Comparer<T>.Default, EqualityComparer<T>.Default, memoryType) { }
+		public ConcurrentIntervalHeap(int capacity, MemoryType memoryType = MemoryType.Normal) : this(capacity, SCG.Comparer<T>.Default, EqualityComparer<T>.Default, memoryType) { }
 
 
         /// <summary>
@@ -245,9 +245,9 @@ namespace C5.concurrent
         /// <param name="comparer">The external comparer</param>
 		/// <param name="capacity">The initial capacity</param>
 		/// <param name = "memoryType"></param>
-		public IntervalHeap(int capacity, SCG.IComparer<T> comparer, MemoryType memoryType = MemoryType.Normal) : this(capacity, comparer, new ComparerZeroHashCodeEqualityComparer<T>(comparer), memoryType) { }
+		public ConcurrentIntervalHeap(int capacity, SCG.IComparer<T> comparer, MemoryType memoryType = MemoryType.Normal) : this(capacity, comparer, new ComparerZeroHashCodeEqualityComparer<T>(comparer), memoryType) { }
 
-        IntervalHeap(int capacity, SCG.IComparer<T> comparer, SCG.IEqualityComparer<T> itemequalityComparer, MemoryType memoryType = MemoryType.Normal)
+        ConcurrentIntervalHeap(int capacity, SCG.IComparer<T> comparer, SCG.IEqualityComparer<T> itemequalityComparer, MemoryType memoryType = MemoryType.Normal)
         {
             if (comparer == null)
                 throw new NullReferenceException("Item comparer cannot be null");
