@@ -28,14 +28,14 @@ using System.Threading.Tasks;
 
 namespace C5UnitTests.concurrent.heaps
 {
-    using CollectionOfInt = C5.concurrent.IntervalHeap<int>;
+    using CollectionOfInt = C5.concurrent.ConcurrentIntervalHeap<int>;
     [TestFixture]
     public class SequentialTests
     {
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new C5.concurrent.IntervalHeap<int>(); }
+        public void Init() { queue = new C5.concurrent.ConcurrentIntervalHeap<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
@@ -132,7 +132,7 @@ namespace C5UnitTests.concurrent.heaps
 
         [SetUp]
         public void Init() {
-            queue = new C5.concurrent.IntervalHeap<int>();
+            queue = new C5.concurrent.ConcurrentIntervalHeap<int>();
             stack = new int[100];
             for(int i = 0; i<stack.Length; i++)
             {
@@ -176,11 +176,14 @@ namespace C5UnitTests.concurrent.heaps
             t1.Join();
             t2.Join();
 
+            Assert.IsTrue(queue.Check());
+
             Assert.AreEqual(stack.Length, queue.Count);
             for(int i = 0; i < stack.Length; i++)
             {
                 Assert.AreEqual(stack[i], queue.DeleteMin());
             }
+            Assert.AreEqual(0, queue.Count);
         }
 
         
