@@ -25,7 +25,7 @@ using SCG = System.Collections.Generic;
 namespace C5.concurrent
 {
     [Serializable]
-    class ConcurrentIntervalHeap<T> : CollectionValueBase<T>, IConcurrentPriorityQueue<T>
+    public class ConcurrentIntervalHeap<T> : CollectionValueBase<T>, IConcurrentPriorityQueue<T>
     {
         #region Events
 

@@ -28,6 +28,7 @@ using System.Threading.Tasks;
 
 namespace C5UnitTests.concurrent.heaps
 {
+    using C5.concurrent;
     using CollectionOfInt = C5.concurrent.ConcurrentIntervalHeap<int>;
     [TestFixture]
     public class SequentialTests
@@ -35,7 +36,7 @@ namespace C5UnitTests.concurrent.heaps
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new C5.concurrent.ConcurrentIntervalHeap<int>(); }
+        public void Init() { queue = new ConcurrentIntervalHeap<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
