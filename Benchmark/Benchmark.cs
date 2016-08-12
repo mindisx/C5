@@ -8,7 +8,6 @@ using System.Globalization;
 
 using System.Threading;
 using System.IO;
-
 using C5;
 using C5.concurrent;
 
@@ -62,14 +61,17 @@ namespace Benchmark
             config.PercentageDelete = new int[] { 0, 10, 15, 40 };
             config.Prefill = true;
 
-            config.TestChromaticTree = true;
-            config.TestChromaticRBTreeOriginal = false;
-            config.TestChromaticRBTreeOriginalWithSCXChange = false;
-            config.TestLockfreeTree = false;
-            config.TestWrappedC5Tree = false;
-            config.TestConcurrentDictionaryWrapperClass = false;
-            config.TestConcurrentRBTreeBesa = true;
-            config.TestRelaxedTree = false;
+            config.TestConcurrentIntervalHeap = true;
+            //config.TestChromaticTree = true;
+            //config.TestChromaticRBTreeOriginal = false;
+            //config.TestChromaticRBTreeOriginalWithSCXChange = false;
+            //config.TestLockfreeTree = false;
+            //config.TestWrappedC5Tree = false;
+            //config.TestConcurrentDictionaryWrapperClass = false;
+            //config.TestConcurrentRBTreeBesa = true;
+            //config.TestRelaxedTree = false;
+
+
             config.TestBesaNakedReadWrite = false;
             config.TestBesaVolatileReadWrite = true;
             config.TestChromaticRBTreeOriginalAssignedDefault = false;
@@ -109,7 +111,7 @@ namespace Benchmark
                 customList.Add(element);
             }
 
-            customDictionary = new ConcurrentIntervalHeap<String>(StringComparer.Ordinal);
+            customDictionary = new ConcurrentIntervalHeap<String>();
             timer.Reset();
             timer.Start();
             foreach (String element in customList)
@@ -188,83 +190,91 @@ namespace Benchmark
                     datafile.Log("\n" + config);
 
                     int numberOfTests = 0;
-                    if (config.TestChromaticTree)
+
+                    if (config.TestConcurrentIntervalHeap)
                     {
-                        datafile.Log("\n\n" + "ChromaticTree");
-                        Console.WriteLine("ChromaticRBTree-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ChromaticTreeWrapperClass<Integer, Integer>));
+                        datafile.Log("\n\n" + "IntervalHeap");
+                        Console.WriteLine("IntervalHeap" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                        new Benchmark().BenchMark(config, typeof(ConcurrentIntervalHeap<int>));
                         numberOfTests += 1;
                     }
-                    if (config.TestWrappedC5Tree)
-                    {
-                        datafile.Log("\n\n" + "C5TreeDictionary");
-                        Console.WriteLine("C5TreeDictionary-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(TreeDictionaryWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestLockfreeTree)
-                    {
-                        datafile.Log("\n\n" + "RBTreeParallel");
-                        Console.WriteLine("RBTreeParallel-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(LockfreeTreeWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestConcurrentDictionaryWrapperClass)
-                    {
-                        datafile.Log("\n\n" + ".NetConcurrentDictionary");
-                        Console.WriteLine("NetConcurrentDictionary-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ConcurrentDictionaryWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestChromaticRBTreeOriginal)
-                    {
-                        datafile.Log("\n\n" + "ChromaticRBTreeOriginal");
-                        Console.WriteLine("ChromaticRBTreeOriginal-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestChromaticRBTreeOriginalWithSCXChange)
-                    {
-                        datafile.Log("\n\n" + "ChromaticRBTreeOriginalWithSCXChange");
-                        Console.WriteLine("ChromaticRBTreeOriginalWithSCXChange-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalWithSCXChangeWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestConcurrentRBTreeBesa)
-                    {
-                        datafile.Log("\n\n" + "ConcurrentRBTreeBesa");
-                        Console.WriteLine("ConcurrentRBTreeBesa-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ConcurrentRBTreeWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestBesaVolatileReadWrite)
-                    {
-                        datafile.Log("\n\n" + "ConcurrentRBTreeBesaV2");
-                        Console.WriteLine("ConcurrentRBTreeBesaV2-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(BesaVolatileReadWriteWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestBesaNakedReadWrite)
-                    {
-                        datafile.Log("\n\n" + "BesaNakedReadWrite");
-                        Console.WriteLine("BesaNakedReadWritee-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(BesaNakedReadWriteWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestChromaticRBTreeOriginalAssignedDefault)
-                    {
-                        datafile.Log("\n\n" + "ChromaticRBTreeOriginalAssignedDefault");
-                        Console.WriteLine("ChromaticRBTreeOriginalAssignedDefault-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalAssignedDefaultWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
-                    if (config.TestChromaticTreeNoNull)
-                    {
-                        datafile.Log("\n\n" + "ChromaticTreeV2");
-                        Console.WriteLine("ChromaticTreeV2-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ChromaticTreeNoNullWrapperClass<Integer, Integer>));
-                        numberOfTests += 1;
-                    }
+                    //if (config.TestChromaticTree)
+                    //{
+                    //    datafile.Log("\n\n" + "ChromaticTree");
+                    //    Console.WriteLine("ChromaticRBTree-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(ChromaticTreeWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestWrappedC5Tree)
+                    //{
+                    //    datafile.Log("\n\n" + "C5TreeDictionary");
+                    //    Console.WriteLine("C5TreeDictionary-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(TreeDictionaryWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestLockfreeTree)
+                    //{
+                    //    datafile.Log("\n\n" + "RBTreeParallel");
+                    //    Console.WriteLine("RBTreeParallel-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(LockfreeTreeWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestConcurrentDictionaryWrapperClass)
+                    //{
+                    //    datafile.Log("\n\n" + ".NetConcurrentDictionary");
+                    //    Console.WriteLine("NetConcurrentDictionary-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(ConcurrentDictionaryWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestChromaticRBTreeOriginal)
+                    //{
+                    //    datafile.Log("\n\n" + "ChromaticRBTreeOriginal");
+                    //    Console.WriteLine("ChromaticRBTreeOriginal-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestChromaticRBTreeOriginalWithSCXChange)
+                    //{
+                    //    datafile.Log("\n\n" + "ChromaticRBTreeOriginalWithSCXChange");
+                    //    Console.WriteLine("ChromaticRBTreeOriginalWithSCXChange-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalWithSCXChangeWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestConcurrentRBTreeBesa)
+                    //{
+                    //    datafile.Log("\n\n" + "ConcurrentRBTreeBesa");
+                    //    Console.WriteLine("ConcurrentRBTreeBesa-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(ConcurrentRBTreeWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestBesaVolatileReadWrite)
+                    //{
+                    //    datafile.Log("\n\n" + "ConcurrentRBTreeBesaV2");
+                    //    Console.WriteLine("ConcurrentRBTreeBesaV2-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(BesaVolatileReadWriteWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestBesaNakedReadWrite)
+                    //{
+                    //    datafile.Log("\n\n" + "BesaNakedReadWrite");
+                    //    Console.WriteLine("BesaNakedReadWritee-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(BesaNakedReadWriteWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestChromaticRBTreeOriginalAssignedDefault)
+                    //{
+                    //    datafile.Log("\n\n" + "ChromaticRBTreeOriginalAssignedDefault");
+                    //    Console.WriteLine("ChromaticRBTreeOriginalAssignedDefault-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalAssignedDefaultWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
+                    //if (config.TestChromaticTreeNoNull)
+                    //{
+                    //    datafile.Log("\n\n" + "ChromaticTreeV2");
+                    //    Console.WriteLine("ChromaticTreeV2-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    new Benchmark().BenchMark(config, typeof(ChromaticTreeNoNullWrapperClass<Integer, Integer>));
+                    //    numberOfTests += 1;
+                    //}
 
 
 
@@ -313,10 +323,11 @@ namespace Benchmark
                  */
 
                 while ((SecondsPerTestTimer.ElapsedMilliseconds / 1000.0) < ((config.SecondsPerTest * 1.0) / config.Threads[config.Threads.Length - 1]) || runs <= ((config.WarmupRuns) + config.Threads[0])) {
-                    
+
 
                     // Create the correct dictionary for this run
-                    dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
+                    //dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
+                    dictionary = new ConcurrentIntervalHeap<int>();
 
                     // Get tree to correct size before we start, if applicable.  
                     if (config.Prefill)
@@ -569,17 +580,17 @@ namespace Benchmark
             set;
         }
 
-        public bool TestChromaticRBTreeOriginal
-        {
-            get;
-            set;
-        }
+        //public bool TestChromaticRBTreeOriginal
+        //{
+        //    get;
+        //    set;
+        //}
 
-        public bool TestChromaticRBTreeOriginalWithSCXChange
-        {
-            get;
-            set;
-        }
+        //public bool TestChromaticRBTreeOriginalWithSCXChange
+        //{
+        //    get;
+        //    set;
+        //}
 
         public bool Prefill
         {
@@ -617,35 +628,41 @@ namespace Benchmark
             set;
         }
 
-        public bool TestConcurrentDictionaryWrapperClass
+        public bool TestConcurrentIntervalHeap
         {
             get;
             set;
         }
 
-        public bool TestRelaxedTree
-        {
-            get;
-            set;
-        }
+        //public bool TestConcurrentDictionaryWrapperClass
+        //{
+        //    get;
+        //    set;
+        //}
 
-        public bool TestLockfreeTree
-        {
-            get;
-            set;
-        }
+        //public bool TestRelaxedTree
+        //{
+        //    get;
+        //    set;
+        //}
 
-        public bool TestWrappedC5Tree
-        {
-            get;
-            set;
-        }
+        //public bool TestLockfreeTree
+        //{
+        //    get;
+        //    set;
+        //}
 
-        public bool TestChromaticTree
-        {
-            get;
-            set;
-        }
+        //public bool TestWrappedC5Tree
+        //{
+        //    get;
+        //    set;
+        //}
+
+        //public bool TestChromaticTree
+        //{
+        //    get;
+        //    set;
+        //}
 
         public int WarmupRuns
         {
