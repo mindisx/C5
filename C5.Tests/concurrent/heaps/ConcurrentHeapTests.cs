@@ -29,7 +29,6 @@ using System.Threading.Tasks;
 namespace C5UnitTests.concurrent.heaps
 {
     using C5.concurrent;
-    using CollectionOfInt = C5.concurrent.ConcurrentIntervalHeap<int>;
     [TestFixture]
     public class SequentialTests
     {
@@ -118,9 +117,6 @@ namespace C5UnitTests.concurrent.heaps
         }
     }
 
-
-
-
     /// <summary>
     /// Concurrent tests that should cover Add, RemoveMax, RemoveMin 
     /// operation by several threads.
@@ -135,11 +131,6 @@ namespace C5UnitTests.concurrent.heaps
         public void Init() {
             queue = new C5.concurrent.ConcurrentIntervalHeap<int>();
             stack = new int[100];
-            for(int i = 0; i<stack.Length; i++)
-            {
-                stack[i] = i;
-            }
-
         }
 
         [TearDown]
@@ -151,6 +142,13 @@ namespace C5UnitTests.concurrent.heaps
         [Test]
         public void ConcurrentAddTest()
         {
+            for (int i = 0; i < stack.Length; i++)
+            {
+                stack[i] = new Random().Next(0, 1000);
+            }
+            Array.Sort(stack);
+
+            //define thread work: add to the queue even numbers. 
             Thread t1 = new Thread(() =>
             {
                 for(int i = 0; i<stack.Length; i++)
@@ -158,9 +156,9 @@ namespace C5UnitTests.concurrent.heaps
                     if (i % 2 == 0)
                         queue.Add(stack[i]);
                 }
-                
             });
 
+            //define thread work: add to the queue odd numbers.
             Thread t2 = new Thread(() =>
             {
                 for (int i = 0; i < stack.Length; i++)
@@ -168,7 +166,6 @@ namespace C5UnitTests.concurrent.heaps
                     if (i % 2 != 0)
                         queue.Add(stack[i]);
                 }
-
             });
 
             t1.Start();
@@ -177,49 +174,78 @@ namespace C5UnitTests.concurrent.heaps
             t1.Join();
             t2.Join();
 
-            Assert.IsTrue(queue.Check());
-
+            Assert.IsTrue(queue.Check()); //check if queue has correct tructure.
             Assert.AreEqual(stack.Length, queue.Count);
-            for(int i = 0; i < stack.Length; i++)
+
+            //check if elements are deleted in order. 
+            for (int i = 0; i < stack.Length; i++)
             {
                 Assert.AreEqual(stack[i], queue.DeleteMin());
             }
             Assert.AreEqual(0, queue.Count);
-        }
+        }       
 
-        
 
-        /// <summary>
-        /// Scalability test.
-        /// run test on concurent interval heap with 4 threads
-        /// and perform 1000 random operation.
-        /// </summary>
         [Test]
-        public void RandomOperationTest()
+        public void ConcurrentRandomOperation()
         {
-            Random rnd = new Random();
-            List<int> runs = new List<int>(4); //dummy list. 
+            Thread[] threads = new Thread[4];
 
-            Parallel.ForEach(runs, r =>
+            for(int i = 0; i<threads.Length; i++)
             {
-                for (int i = 0; i < 1000; i++)
-                {
-                    int random = rnd.Next(1, 3);
+                Thread t = new Thread(() =>
+               {
+                   while (queue.Count < 1000)
+                   {
+                       int randomOp = new Random().Next(1, 3);
+                       switch (randomOp)
+                       {
+                           case 1:
+                               int randomInt = new Random().Next(0, 1000);
+                               queue.Add(randomInt);
+                               break;
+                           case 2:
+                               queue.DeleteMax();
+                               break;
+                           case 3:
+                               queue.DeleteMin();
+                               break;
+                       }
+                   }
+               });
 
-                    switch (random)
-                    {
-                        case 1:
-                            //add operation
-                            break;
-                        case 2:
-                            //remove max operation
-                            break;
-                        case 3:
-                            //remove min operation;
-                            break;
-                    }
-                }
-            });
+                threads[i] = t;
+            }
+
+            for (int i = 0; i < threads.Length; i++)
+            {
+                threads[i].Start();
+            }
+
+            for (int i = 0; i < threads.Length; i++)
+            {
+                threads[i].Join();
+            }
+            
+            Assert.IsTrue(queue.Check());
+
+            int greather = int.MaxValue;
+            while (queue.Count > 500)
+            {
+                int current = queue.DeleteMax();
+                Assert.IsTrue(greather >= current);
+                greather = current;
+            }
+
+            int lesser = int.MinValue;
+            while (queue.Count > 0)
+            {
+                int current = queue.DeleteMin();
+                Assert.IsTrue(lesser <= current);
+                lesser = current;
+            }
+
         }
+       
     }
 }
