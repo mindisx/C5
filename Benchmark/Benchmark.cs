@@ -2,10 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Globalization;
-
 using System.Threading;
 using System.IO;
 using C5;
@@ -16,12 +12,9 @@ namespace Benchmark
     class Benchmark
     {
         //IBenchmarkable<Integer></Integer> Integer> dictionary;
-        IConcurrentPriorityQueue<int> dictionary;
-        //initialize data structure
-
+        IConcurrentPriorityQueue<int> dictionary;//initialize data structure
         Barrier barrier; //Enables multiple tasks to cooperatively work on an algorithm in parallel through multiple phases.
 
-        private static Logger log;
         private static Logger datafile;
         private static Logger gnuPlotScript;
         private static Logger runGnuPlot = new Logger("runGnuPlot.sh");
@@ -31,8 +24,7 @@ namespace Benchmark
 
         public static void Main(String[] args)
         {
-            // Print system info
-            Console.WriteLine(SystemInfo());
+            Console.WriteLine(SystemInfo()); // Print system info
 
             // Create a config object and set the values
             // TEST RUN
@@ -47,12 +39,10 @@ namespace Benchmark
             config.Prefill = true;
 
             // CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
-
             config.WarmupRuns = 4;
             config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
             config.Threads = new int[] { 1, 2 };
             config.NumberOfElements = new int[] { 100000, 1000000 };
-            config.NumberOfElements = new int[] { 10000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 120;
             config.SecondsPerTest = 2;
@@ -62,59 +52,44 @@ namespace Benchmark
             config.Prefill = true;
 
             config.TestConcurrentIntervalHeap = true;
-            //config.TestChromaticTree = true;
-            //config.TestChromaticRBTreeOriginal = false;
-            //config.TestChromaticRBTreeOriginalWithSCXChange = false;
-            //config.TestLockfreeTree = false;
-            //config.TestWrappedC5Tree = false;
-            //config.TestConcurrentDictionaryWrapperClass = false;
-            //config.TestConcurrentRBTreeBesa = true;
-            //config.TestRelaxedTree = false;
 
-
-            config.TestBesaNakedReadWrite = false;
-            config.TestBesaVolatileReadWrite = true;
-            config.TestChromaticRBTreeOriginalAssignedDefault = false;
-            config.TestChromaticTreeNoNull = true;
-
-            // Run the benchmark
-            RunBenchMark();
-
-            // Test Integer class
-            //			new IntegerClassTest().RunTest(10000000);
+            RunBenchmark();// Run the benchmark
 
             // StringComparer Test
             // IMPORTANT: DONE THIS WAY DUE TO STRINGCOMPARER NOT WORKING WITH GENERIC TYPES (OBVIOUSLY)
-            //			RunStringComparerTest();
+            RunStringComparerTest();
 
         }
 
+        /// <summary>
+        /// A benchmark test for string comparer.
+        /// No parrelization.
+        /// </summary>
         static void RunStringComparerTest()
         {
-            const int warmupRuns = 2;
-            const int measuredRuns = 3;
-            const int totalRuns = warmupRuns + measuredRuns;
-
             var timer = new System.Diagnostics.Stopwatch();
 
-            IConcurrentPriorityQueue<String> standardDictionary;
-            IConcurrentPriorityQueue<String> customDictionary;
+            IConcurrentPriorityQueue<string> standardDictionary;
+            IConcurrentPriorityQueue<string> customDictionary;
 
-            var threadQueue = generateRandomQueue(1000000, 0, 1000000);
-            var standardList = new List<String>();
-            var customList = new List<String>();
+            var randomIntQueue = generateRandomQueue(1000000, 0, 1000000);
+            var standardList = new List<string>();
+            var customList = new List<string>();
 
-            while (threadQueue.Count > 0)
+
+            while (randomIntQueue.Count > 0)
             {
-                var element = threadQueue.Dequeue().ToString();
+                var element = randomIntQueue.Dequeue().ToString();
                 standardList.Add(element);
                 customList.Add(element);
             }
 
-            customDictionary = new ConcurrentIntervalHeap<String>();
+            customDictionary = new ConcurrentIntervalHeap<string>();
+
             timer.Reset();
+
             timer.Start();
-            foreach (String element in customList)
+            foreach (string element in customList)
             {
                 customDictionary.Add(element);
             }
@@ -122,8 +97,9 @@ namespace Benchmark
             Console.WriteLine("Custom time Add:   " + timer.ElapsedTicks);
 
             timer.Reset();
+
             timer.Start();
-            foreach (String element in customList)
+            foreach (string element in customList)
             {
                 customDictionary.DeleteMax();
             }
@@ -133,8 +109,9 @@ namespace Benchmark
             standardDictionary = new ConcurrentIntervalHeap<String>();
 
             timer.Reset();
+
             timer.Start();
-            foreach (String element in standardList)
+            foreach (string element in standardList)
             {
                 standardDictionary.Add(element);
             }
@@ -142,8 +119,9 @@ namespace Benchmark
             Console.WriteLine("Standard time Add: " + timer.ElapsedTicks);
 
             timer.Reset();
+
             timer.Start();
-            foreach (String element in standardList)
+            foreach (string element in standardList)
             {
                 standardDictionary.DeleteMin();
             }
@@ -153,23 +131,16 @@ namespace Benchmark
 
         }
 
-        static void RunBenchMark()
+        static void RunBenchmark()
         {
-
             DateTime now = DateTime.Now;
             timestamp = now.Year.ToString() + now.Month.ToString() + now.Day.ToString() + "-" + now.Hour.ToString() + now.Minute.ToString() + now.Second.ToString();
 
-            /*
-			 * Run the desired tests and log to the log, gnuplotPrint and gnuplotScript
-			 */
-
-            for (int i = 0; i < config.PercentageInsert.Length; i++)
+            for (int i = 0; i < config.PercentageInsert.Length; i++)//Run the desired tests and log to the log, gnuplotPrint and gnuplotScript
             {
                 foreach (int elements in config.NumberOfElements)
                 {
-
                     maxThroughput = 0;
-
                     config.EndRangeRandom = elements;
                     config.CurrentNumberOfElements = elements;
                     config.CurrentPercentageInsert = config.PercentageInsert[i];
@@ -180,9 +151,7 @@ namespace Benchmark
                     string gnuPlotScriptName = timestamp + "-" + "gnuPlotScript-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".gp";
                     string benchmarkingResultsName = timestamp + "-" + "Benchmarking-Results-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".png";
 
-
-
-                    //				log = new Logger("log-" + DateTime.Now.ToFileTime());
+                    //log = new Logger("log-" + DateTime.Now.ToFileTime());
                     datafile = new Logger(datafileName);
                     gnuPlotScript = new Logger(gnuPlotScriptName);
 
@@ -198,87 +167,7 @@ namespace Benchmark
                         new Benchmark().BenchMark(config, typeof(ConcurrentIntervalHeap<int>));
                         numberOfTests += 1;
                     }
-                    //if (config.TestChromaticTree)
-                    //{
-                    //    datafile.Log("\n\n" + "ChromaticTree");
-                    //    Console.WriteLine("ChromaticRBTree-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(ChromaticTreeWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestWrappedC5Tree)
-                    //{
-                    //    datafile.Log("\n\n" + "C5TreeDictionary");
-                    //    Console.WriteLine("C5TreeDictionary-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(TreeDictionaryWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestLockfreeTree)
-                    //{
-                    //    datafile.Log("\n\n" + "RBTreeParallel");
-                    //    Console.WriteLine("RBTreeParallel-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(LockfreeTreeWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestConcurrentDictionaryWrapperClass)
-                    //{
-                    //    datafile.Log("\n\n" + ".NetConcurrentDictionary");
-                    //    Console.WriteLine("NetConcurrentDictionary-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(ConcurrentDictionaryWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestChromaticRBTreeOriginal)
-                    //{
-                    //    datafile.Log("\n\n" + "ChromaticRBTreeOriginal");
-                    //    Console.WriteLine("ChromaticRBTreeOriginal-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestChromaticRBTreeOriginalWithSCXChange)
-                    //{
-                    //    datafile.Log("\n\n" + "ChromaticRBTreeOriginalWithSCXChange");
-                    //    Console.WriteLine("ChromaticRBTreeOriginalWithSCXChange-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalWithSCXChangeWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestConcurrentRBTreeBesa)
-                    //{
-                    //    datafile.Log("\n\n" + "ConcurrentRBTreeBesa");
-                    //    Console.WriteLine("ConcurrentRBTreeBesa-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(ConcurrentRBTreeWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestBesaVolatileReadWrite)
-                    //{
-                    //    datafile.Log("\n\n" + "ConcurrentRBTreeBesaV2");
-                    //    Console.WriteLine("ConcurrentRBTreeBesaV2-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(BesaVolatileReadWriteWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestBesaNakedReadWrite)
-                    //{
-                    //    datafile.Log("\n\n" + "BesaNakedReadWrite");
-                    //    Console.WriteLine("BesaNakedReadWritee-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(BesaNakedReadWriteWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestChromaticRBTreeOriginalAssignedDefault)
-                    //{
-                    //    datafile.Log("\n\n" + "ChromaticRBTreeOriginalAssignedDefault");
-                    //    Console.WriteLine("ChromaticRBTreeOriginalAssignedDefault-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(ChromaticRBTreeOriginalAssignedDefaultWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
-                    //if (config.TestChromaticTreeNoNull)
-                    //{
-                    //    datafile.Log("\n\n" + "ChromaticTreeV2");
-                    //    Console.WriteLine("ChromaticTreeV2-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    new Benchmark().BenchMark(config, typeof(ChromaticTreeNoNullWrapperClass<Integer, Integer>));
-                    //    numberOfTests += 1;
-                    //}
 
-
-
-                    //	log.Close();
                     datafile.Close();
 
                     gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDelete + "% Delete / " + config.CurrentPercentageGet + "% Find" + "\"");
@@ -298,18 +187,16 @@ namespace Benchmark
             runGnuPlot.Close();
         }
 
-        /* 
-         * Main benchmarking method
-         */
-
+        /// <summary>
+        /// Main benchmarking method
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="type"></param>
         void BenchMark(BenchmarkConfig config, Type type)
         {
             var SecondsPerTestTimer = new System.Diagnostics.Stopwatch();
 
-            /*
-             * Run the benchmark for all the number of threads specified 
-             */
-
+            //Run the benchmark for all the number of threads specified 
             foreach (int threadsToRun in config.Threads)
             {
                 SecondsPerTestTimer.Reset();
@@ -317,17 +204,11 @@ namespace Benchmark
                 Int64 throughput = 0;
                 int runs = 0;
 
-
-                /*
-                 * Inner loop that runs until standard deviation is below some threshold or it has done too many runs and throws an exception
-                 */
-
-                while ((SecondsPerTestTimer.ElapsedMilliseconds / 1000.0) < ((config.SecondsPerTest * 1.0) / config.Threads[config.Threads.Length - 1]) || runs <= ((config.WarmupRuns) + config.Threads[0])) {
-
-
-                    // Create the correct dictionary for this run
+                //Inner loop that runs until standard deviation is below some threshold or it has done too many runs and throws an exception
+                while ((SecondsPerTestTimer.ElapsedMilliseconds / 1000.0) < ((config.SecondsPerTest * 1.0) / config.Threads[config.Threads.Length - 1]) || runs <= ((config.WarmupRuns) + config.Threads[0]))
+                {
                     //dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
-                    dictionary = new ConcurrentIntervalHeap<int>();
+                    dictionary = new ConcurrentIntervalHeap<int>(); // Create the correct dictionary for this run
 
                     // Get tree to correct size before we start, if applicable.  
                     if (config.Prefill)
@@ -354,17 +235,14 @@ namespace Benchmark
                         while (threadQueue.Count > 0)
                         {
                             int element = threadQueue.Dequeue();
-                            //							dictionary.Add (threadQueue.Dequeue ().ToString(), System.Threading.Thread.CurrentThread.ManagedThreadId.ToString());
                             dictionary.Add(element);
                         }
                     }
 
                     // Create the start and end barrier
                     barrier = new Barrier(threadsToRun + 1);
-                    /* 
-                    Submit the work
-                    */
-
+                    
+                    // Submit the work
                     for (int threads = 1; threads <= threadsToRun; threads++)
                     {
                         int start = config.StartRangeRandom;
@@ -374,31 +252,25 @@ namespace Benchmark
                         thread.Start(threadQueue);
                     }
 
-                    // Wait for all tasks / threads to be ready to begin work
-                    barrier.SignalAndWait();
+                    barrier.SignalAndWait();// Wait for all tasks / threads to be ready to begin work
 
-                    // Start the timers
-                    var t = new System.Diagnostics.Stopwatch();
+                   
+                    var t = new System.Diagnostics.Stopwatch(); // Start the timers
                     t.Start();
                     SecondsPerTestTimer.Start();
 
-                    // Wait for all tasks / threads to be finished with their work. Unlike Java, no need to reset the barrier in C#
-                    barrier.SignalAndWait();
+                    barrier.SignalAndWait(); // Wait for all tasks / threads to be finished with their work. Unlike Java, no need to reset the barrier in C#
 
-                    // Get elapsed time
-                    double time = t.ElapsedTicks;
+                    double time = t.ElapsedTicks;// Get elapsed time
                     SecondsPerTestTimer.Stop();
-
-                    // Only add results after the warmup runs
-                    if (runs > config.WarmupRuns)
+                   
+                    if (runs > config.WarmupRuns) // Only add results after the warmup runs
                     {
                         Int64 toAdd = (Int64)(((config.CurrentNumberOfElements * threadsToRun) / time) * 1000.0 * 10000.0);
                         tempThroughPut.Add(toAdd);
                     }
-
-                    // Increment number of runs
-                    runs++;
-
+                    
+                    runs++;// Increment number of runs
                 }
 
                 throughput = (Int64)tempThroughPut.Average();
@@ -412,52 +284,45 @@ namespace Benchmark
         }
 
 
-        /*
-        * Generates a queue of random ints
-        */
-
+        /// <summary>
+        /// Generates a list of random ints.
+        /// </summary>
+        /// <param name="size"></param>
+        /// <param name="RandomStartRange"></param>
+        /// <param name="RandomEndRange"></param>
+        /// <returns></returns>
         static Queue<int> generateRandomQueue(int size, int RandomStartRange, int RandomEndRange)
         {
-            //			Console.WriteLine ("I was called with " + RandomStartRange + " and " + RandomEndRange);
             Random rand = new Random();
             Queue<int> queueToReturn = new Queue<int>();
             for (int i = RandomStartRange; i < (size + RandomStartRange); i++)
             {
-                //				queueToReturn.Enqueue (i);
                 int randomInt = rand.Next(RandomStartRange, RandomEndRange);
                 queueToReturn.Enqueue(randomInt);
             }
             return queueToReturn;
         }
 
-
-        /*
-        * The work done by each thread
-        * - It writes the cubed value of each element in the queue to a disposable file in the folder specified as OUTPUT_FOLDER.
-        * The writing to the file is done in order to take time and ensure that the code is not optimized away by the compiler.
-        * In the real benchmarking version this would not be necessary.
-        */
-
-        private void Work(Object state)
+        /// <summary>
+        /// The work done by each thread
+        /// - It writes the cubed value of each element in the queue to a disposable file in the folder specified as OUTPUT_FOLDER.
+        /// The writing to the file is done in order to take time and ensure that the code is not optimized away by the compiler.
+        /// In the real benchmarking version this would not be necessary.
+        /// </summary>
+        /// <param name="state"></param>
+        private void Work(object state)
         {
-            // Cast the state to a Queue.
-            Queue<int> threadQueue = (Queue<int>)state;
-
-            // Ensure that tasks are submitted and ready to begin work at the same time
-            barrier.SignalAndWait();
-
-            // Do some work, write to file to avoid the compiler recognizing the dead code.
-            Random random = new Random();
+            Queue<int> threadQueue = (Queue<int>)state; // Cast the state to a Queue.
+            barrier.SignalAndWait();// Ensure that tasks are submitted and ready to begin work at the same time
+            Random random = new Random();// Do some work, write to file to avoid the compiler recognizing the dead code.
             while (threadQueue.Count > 0)
             {
                 int option = random.Next(0, 100);
-                //				var element = threadQueue.Dequeue().ToString();
                 var element = threadQueue.Dequeue();
 
                 if (option >= (100 - config.CurrentPercentageInsert))
                 {
                     dictionary.Add(element);
-                    //dictionary.Add(element);
                 }
                 else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageGet))
                 {
@@ -468,15 +333,12 @@ namespace Benchmark
                     dictionary.DeleteMin();
                 }
             }
-
-            // Let main thread know we are done
-            barrier.SignalAndWait();
+            barrier.SignalAndWait();// Let main thread know we are done
         }
 
 
         class Logger
         {
-
             private readonly StreamWriter logFileWriter;
 
             public Logger(String fileName)
@@ -495,7 +357,7 @@ namespace Benchmark
             }
         }
 
-        private static String SystemInfo()
+        private static string SystemInfo()
         {
             return
             "# OS:          " + Environment.OSVersion.VersionString + System.Environment.NewLine +
@@ -536,26 +398,6 @@ namespace Benchmark
             );
         }
 
-        public bool TestChromaticTreeNoNull
-        {
-            get;
-            set;
-        }
-
-        public bool TestChromaticRBTreeOriginalAssignedDefault { get; set; }
-
-        public bool TestBesaNakedReadWrite
-        {
-            get;
-            set;
-        }
-
-        public bool TestBesaVolatileReadWrite
-        {
-            get;
-            set;
-        }
-
         public int CurrentNumberOfElements
         {
             get;
@@ -580,17 +422,6 @@ namespace Benchmark
             set;
         }
 
-        //public bool TestChromaticRBTreeOriginal
-        //{
-        //    get;
-        //    set;
-        //}
-
-        //public bool TestChromaticRBTreeOriginalWithSCXChange
-        //{
-        //    get;
-        //    set;
-        //}
 
         public bool Prefill
         {
@@ -633,36 +464,6 @@ namespace Benchmark
             get;
             set;
         }
-
-        //public bool TestConcurrentDictionaryWrapperClass
-        //{
-        //    get;
-        //    set;
-        //}
-
-        //public bool TestRelaxedTree
-        //{
-        //    get;
-        //    set;
-        //}
-
-        //public bool TestLockfreeTree
-        //{
-        //    get;
-        //    set;
-        //}
-
-        //public bool TestWrappedC5Tree
-        //{
-        //    get;
-        //    set;
-        //}
-
-        //public bool TestChromaticTree
-        //{
-        //    get;
-        //    set;
-        //}
 
         public int WarmupRuns
         {
