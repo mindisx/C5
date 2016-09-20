@@ -40,14 +40,17 @@ namespace C5UnitTests.concurrent.heaps
         [TearDown]
         public void Dispose() { queue = null; }
 
-        /// <summary>
-        /// Test if the empty queue throws NoSuchItemException
-        /// </summary>
+
         [Test]
-        public void EmptyQueueTest()
+        public void EmptyQueueDeleteMaxTest()
         {
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
+        }
+
+        public void EmptyQueueDeleteMinTest()
+        {
+            Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
         }
 
@@ -125,23 +128,24 @@ namespace C5UnitTests.concurrent.heaps
     class ConcurrencyTest
     {
         IConcurrentPriorityQueue<int> queue;
-        int[] stack;
+
 
         [SetUp]
-        public void Init() {
+        public void Init()
+        {
             queue = new C5.concurrent.ConcurrentIntervalHeap<int>();
-            stack = new int[100];
         }
 
         [TearDown]
-        public void Dispose() {
+        public void Dispose()
+        {
             queue = null;
-            stack = null;
         }
 
         [Test]
         public void ConcurrentAddTest()
         {
+            int[] stack = new int[100];
             for (int i = 0; i < stack.Length; i++)
             {
                 stack[i] = new Random().Next(0, 1000);
@@ -151,7 +155,7 @@ namespace C5UnitTests.concurrent.heaps
             //define thread work: add to the queue even numbers. 
             Thread t1 = new Thread(() =>
             {
-                for(int i = 0; i<stack.Length; i++)
+                for (int i = 0; i < stack.Length; i++)
                 {
                     if (i % 2 == 0)
                         queue.Add(stack[i]);
@@ -183,7 +187,8 @@ namespace C5UnitTests.concurrent.heaps
                 Assert.AreEqual(stack[i], queue.DeleteMin());
             }
             Assert.AreEqual(0, queue.Count);
-        }       
+        }
+
 
 
         [Test]
@@ -191,30 +196,35 @@ namespace C5UnitTests.concurrent.heaps
         {
             Thread[] threads = new Thread[4];
 
-            for(int i = 0; i<threads.Length; i++)
+            for (int i = 0; i < threads.Length; i++)
             {
                 Thread t = new Thread(() =>
-               {
-                   while (queue.Count < 1000)
-                   {
-                       int randomOp = new Random().Next(1, 3);
-                       switch (randomOp)
-                       {
-                           case 1:
-                               int randomInt = new Random().Next(0, 1000);
-                               queue.Add(randomInt);
-                               break;
-                           case 2:
-                               queue.DeleteMax();
-                               break;
-                           case 3:
-                               queue.DeleteMin();
-                               break;
-                       }
-                   }
-               });
+                {
+                    int iterations = 0;
+                    while (iterations < 1000)
+                    {
+                        int randomOp = new Random().Next(0, 100);
+                        if (randomOp <= 15)
+                        {
+                            queue.DeleteMin();
+                        }
+                        else if (randomOp <= 35)
+                        {
+                            queue.DeleteMax();
+                        }
+                        else if (randomOp <= 50)
+                        {
+                            int randomInt = new Random().Next(0, 1000);
+                            queue.Add(randomInt);
+                        }
+
+                        iterations++;
+                    }
+                });
 
                 threads[i] = t;
+                //no element is lost 
+                //no element is duplicated. make each
             }
 
             for (int i = 0; i < threads.Length; i++)
@@ -226,7 +236,7 @@ namespace C5UnitTests.concurrent.heaps
             {
                 threads[i].Join();
             }
-            
+
             Assert.IsTrue(queue.Check());
 
             int greather = int.MaxValue;
@@ -246,6 +256,5 @@ namespace C5UnitTests.concurrent.heaps
             }
 
         }
-       
     }
 }
