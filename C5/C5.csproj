@@ -61,6 +61,7 @@
     <Compile Include="arrays\HashedArrayList.cs" />
     <Compile Include="arrays\SortedArray.cs" />
     <Compile Include="concurrent\heaps\ConcurrentIntervalHeap.cs" />
+    <Compile Include="concurrent\heaps\GlobalLockDEPQ.cs" />
     <Compile Include="EnumerableBase.cs" />
     <Compile Include="MemorySafeEnumerator.cs" />
     <Compile Include="comparers\EqualityComparer.cs" />
