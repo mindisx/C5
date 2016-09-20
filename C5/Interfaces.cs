@@ -1982,58 +1982,60 @@ namespace C5
     /// </summary>
     public interface IConcurrentPriorityQueue<T>
     {
+ 
         /// <summary>
-        /// Adds a new element
+        /// Add an item to the priority queue
         /// </summary>
         /// <returns></returns>
         bool Add(T item);
 
-        /// <summary>
-        /// Deletes the min element
-        /// </summary>
-        /// <returns></returns>
-        T DeleteMin();
 
         /// <summary>
-        /// Deletes the max element
+        /// Find the current least item of this priority queue.
         /// </summary>
-        /// <returns></returns>
-        T DeleteMax();
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns></returns>
+        /// <returns>The least item.</returns>
         T FindMin();
 
         /// <summary>
-        /// 
+        /// Find the current largest item of this priority queue.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The largest item.</returns>
         T FindMax();
 
         /// <summary>
-        /// 
+        /// Remove the least item from this  priority queue.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The removed item.</returns>
+        T DeleteMin();
+
+        /// <summary>
+        /// Remove the largest item from this priority queue.
+        /// </summary>
+        /// <returns>The removed item.</returns>
+        T DeleteMax();
+
+        /// <summary>
+        /// Gets the amount of elements in the queue
+        /// </summary>
+        /// <returns>an integer value</returns>
         int Count { get; }
 
         /// <summary>
-        /// 
+        /// Diagnostics for the priority queue
         /// </summary>
         /// <returns></returns>
         bool Check();
 
         /// <summary>
-        /// 
+        /// Check if the queue is empty
         /// </summary>
         /// <returns></returns>
         bool IsEmpty();
 
         /// <summary>
-        /// 
+        /// Returns the entire priority queue
         /// </summary>
-        /// <returns></returns>
+        /// <returns>An enuramble</returns>
         IEnumerable<T> All();
     }
 
