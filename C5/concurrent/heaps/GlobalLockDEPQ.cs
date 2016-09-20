@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace C5.concurrent.heaps
+namespace C5.concurrent
 {
     class GlobalLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
