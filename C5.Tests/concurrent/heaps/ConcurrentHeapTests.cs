@@ -29,13 +29,15 @@ using System.Threading.Tasks;
 namespace C5UnitTests.concurrent.heaps
 {
     using C5.concurrent;
+
+    #region Sequential Tests
     [TestFixture]
     public class SequentialTests
     {
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new ConcurrentIntervalHeap<int>(); }
+        public void Init() { queue = new GlobalLockDEPQ<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
@@ -48,17 +50,48 @@ namespace C5UnitTests.concurrent.heaps
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
         }
 
+        [Test]
         public void EmptyQueueDeleteMinTest()
         {
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
         }
 
-        /// <summary>
-        /// Test if queue preseves correct structure while adding new elements
-        /// </summary>
         [Test]
-        public void AddElementsTest()
+        public void EmptyQueueFindMaxTest()
+        {
+            Assert.AreEqual(0, queue.Count);
+            Assert.Throws<NoSuchItemException>(() => queue.FindMax());
+        }
+
+        [Test]
+        public void EmptyQueueFindMinTest()
+        {
+            Assert.AreEqual(0, queue.Count);
+            Assert.Throws<NoSuchItemException>(() => queue.FindMin());
+        }
+
+        [Test]
+        public void IsEmptyTest()
+        {
+            Assert.IsTrue(queue.IsEmpty());
+            queue.Add(1);
+            Assert.IsFalse(queue.IsEmpty());
+        }
+
+        [Test]
+        public void CountTest()
+        {
+            Assert.AreEqual(0, queue.Count);
+            queue.Add(1);
+            queue.Add(2);
+            queue.Add(3);
+            queue.Add(4);
+            Assert.AreEqual(4, queue.Count);
+        }
+
+        [Test]
+        public void AddTest()
         {
             queue.Add(20);
             Assert.IsTrue(queue.Check());
@@ -68,14 +101,13 @@ namespace C5UnitTests.concurrent.heaps
             Assert.IsTrue(queue.Check());
             queue.Add(100);
             Assert.IsTrue(queue.Check());
+            queue.Add(0);
+            Assert.IsTrue(queue.Check());
+            Assert.AreEqual(5, queue.Count);
         }
 
-        /// <summary>
-        /// Test if queue preserves correct structure while adding elements and 
-        /// it returns expected Max element.
-        /// </summary>
         [Test]
-        public void AddRemoveMaxTest()
+        public void RemoveMaxTest()
         {
             queue.Add(20);
             Assert.IsTrue(queue.Check());
@@ -84,14 +116,12 @@ namespace C5UnitTests.concurrent.heaps
             queue.Add(19);
             Assert.IsTrue(queue.Check());
             Assert.AreEqual(20, queue.DeleteMax());
+            Assert.AreEqual(19, queue.DeleteMax());
+            Assert.AreEqual(1, queue.DeleteMax());
         }
 
-        /// <summary>
-        /// Test if queue preserves correct structure while adding elements and 
-        /// it returns expected Min element.
-        /// </summary>
         [Test]
-        public void AddRemoveMinTest()
+        public void RemoveMinTest()
         {
             queue.Add(20);
             Assert.IsTrue(queue.Check());
@@ -100,25 +130,29 @@ namespace C5UnitTests.concurrent.heaps
             queue.Add(19);
             Assert.IsTrue(queue.Check());
             Assert.AreEqual(1, queue.DeleteMin());
+            Assert.AreEqual(19, queue.DeleteMax());
+            Assert.AreEqual(20, queue.DeleteMax());
         }
 
-        /// <summary>
-        /// Test if queue returns expected queue size
-        /// </summary>
         [Test]
-        public void SizeTest()
+        public void AllTest()
         {
-            queue.Add(20);
-            Assert.IsTrue(queue.Check());
-            Assert.AreEqual(1, queue.Count);
-            queue.Add(1);
-            Assert.IsTrue(queue.Check());
-            Assert.AreEqual(2, queue.Count);
-            queue.Add(19);
-            Assert.IsTrue(queue.Check());
-            Assert.AreEqual(3, queue.Count);
+            Assert.AreEqual(0, queue.Count);
+            Assert.Throws<NoSuchItemException>(() => queue.All());
+
+            int[] elements = new int[] { 1, 25, 7, 80, 32 };
+            foreach (int e in elements) { queue.Add(e); }
+            int[] testElements = (int[])queue.All();
+            Assert.AreEqual(elements.Length, testElements.Length);
+            foreach(int e in elements)
+            {
+                int pos = Array.IndexOf(testElements, elements);
+                Assert.IsTrue(pos > -1);
+            }
         }
     }
+
+    #endregion
 
     /// <summary>
     /// Concurrent tests that should cover Add, RemoveMax, RemoveMin 
