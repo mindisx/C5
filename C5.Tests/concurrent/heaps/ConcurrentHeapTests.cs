@@ -182,6 +182,7 @@ namespace C5UnitTests.concurrent
 
 
         [Test]
+        [Repeat(10)]
         public void CountTest()
         {
             Assert.AreEqual(0, queue.Count);
@@ -218,6 +219,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Repeat(10)]
         public void IsEmptyTest()
         {
             Assert.IsTrue(queue.IsEmpty());
@@ -322,6 +324,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Repeat(10)]
         public void FindMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.FindMin());
@@ -359,7 +362,6 @@ namespace C5UnitTests.concurrent
             list.Sort();
             Assert.AreEqual(list[0], queue.FindMin());
         }
-
 
         [Test]
         public void AddTest()
