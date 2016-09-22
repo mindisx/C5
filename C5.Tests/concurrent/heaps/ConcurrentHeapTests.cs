@@ -26,7 +26,7 @@ using NUnit.Framework;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace C5UnitTests.concurrent.heaps
+namespace C5UnitTests.concurrent
 {
     using C5.concurrent;
 
@@ -161,13 +161,16 @@ namespace C5UnitTests.concurrent.heaps
     [TestFixture]
     class ConcurrencyTest
     {
-        IConcurrentPriorityQueue<int> queue;
-
+        private IConcurrentPriorityQueue<int> queue;
+        private int threadCount;
 
         [SetUp]
         public void Init()
         {
-            queue = new C5.concurrent.ConcurrentIntervalHeap<int>();
+            queue = new GlobalLockDEPQ<int>();
+            //Enviroment.ProcessorCount is number of logical processors
+            threadCount = Environment.ProcessorCount + 2;
+
         }
 
         [TearDown]
@@ -177,7 +180,7 @@ namespace C5UnitTests.concurrent.heaps
         }
 
         [Test]
-        public void ConcurrentAddTest()
+        public void AddTest()
         {
             int[] stack = new int[100];
             for (int i = 0; i < stack.Length; i++)
@@ -187,6 +190,8 @@ namespace C5UnitTests.concurrent.heaps
             Array.Sort(stack);
 
             //define thread work: add to the queue even numbers. 
+           
+           
             Thread t1 = new Thread(() =>
             {
                 for (int i = 0; i < stack.Length; i++)
@@ -226,7 +231,7 @@ namespace C5UnitTests.concurrent.heaps
 
 
         [Test]
-        public void ConcurrentRandomOperation()
+        public void RandomOperation()
         {
             Thread[] threads = new Thread[4];
 
@@ -289,6 +294,25 @@ namespace C5UnitTests.concurrent.heaps
                 lesser = current;
             }
 
+        }
+
+        [Test]
+        public void DelteMinTest()
+        {
+
+            
+            int[] stack = new int[100];
+            for (int i = 0; i < stack.Length; i++)
+            {
+                stack[i] = new Random().Next(0, 1000);
+            }
+            Array.Sort(stack);
+
+        }
+
+        public void DeleteMaxTest()
+        {
+            
         }
     }
 }

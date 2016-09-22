@@ -5,8 +5,9 @@ using System.Text;
 
 namespace C5.concurrent
 {
-    class GlobalLockDEPQ<T> : IConcurrentPriorityQueue<T>
+    public class GlobalLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
+        
         public int Count
         {
             get
