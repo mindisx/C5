@@ -333,6 +333,10 @@ namespace C5UnitTests.concurrent
             for (int i = 0; i < threadCount; i++) { threads[i].Start(); }
             try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
             catch (ThreadInterruptedException exn) { }
+
+            //check if queue has correct structure.
+            Assert.IsTrue(queue.Check());
+            Assert.AreEqual(list.Count, queue.Count);
         }
 
         public void DeleteMaxTest()
@@ -365,6 +369,10 @@ namespace C5UnitTests.concurrent
             for (int i = 0; i < threadCount; i++) { threads[i].Start(); }
             try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
             catch (ThreadInterruptedException exn) { }
+
+            //check if queue has correct structure.
+            Assert.IsTrue(queue.Check());
+            Assert.AreEqual(list.Count, queue.Count);
 
         }
     }
