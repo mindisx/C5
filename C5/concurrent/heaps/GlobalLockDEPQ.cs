@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using SCG = System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -11,15 +11,23 @@ namespace C5.concurrent
         struct Interval
         {
             internal T first, last;
+            public override string ToString()
+            {
+                return string.Format("[{0}; {1}]", first, last);
+            }
         }
-
+        SCG.IComparer<T> comparer;
+        SCG.IEqualityComparer<T> itemEquelityComparer;
         Interval[] heap;
         int size;
 
-
-        public GlobalLockDEPQ(int capacity)
+        public GlobalLockDEPQ() : this(16) { }
+        
+        GlobalLockDEPQ(int capacity)
         {
-            
+            this.comparer = SCG.Comparer<T>.Default;
+            this.itemEquelityComparer = SCG.EqualityComparer<T>.Default;
+            heap = new Interval[capacity + 1];
         }
         
         public int Count
@@ -35,7 +43,7 @@ namespace C5.concurrent
             throw new NotImplementedException();
         }
 
-        public IEnumerable<T> All()
+        public SCG.IEnumerable<T> All()
         {
             throw new NotImplementedException();
         }
