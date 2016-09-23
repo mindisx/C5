@@ -497,8 +497,7 @@ namespace C5UnitTests.concurrent
             }
 
             Assert.AreEqual(0, queue.Count);
-
-            Assert.AreEqual(list[0], queue.DeleteMin());
+            Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
 
         }
 
@@ -542,7 +541,7 @@ namespace C5UnitTests.concurrent
             }
 
             Assert.AreEqual(0, queue.Count);
-            Assert.AreEqual(list[list.Count - 1], queue.DeleteMax());
+            Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
         }
     }
     #endregion
