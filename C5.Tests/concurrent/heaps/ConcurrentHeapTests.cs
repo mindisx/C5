@@ -473,7 +473,6 @@ namespace C5UnitTests.concurrent
         [Repeat(10)]
         public void DelteMinTest()
         {
-
             Thread[] threads = new Thread[threadCount];
             Assert.AreEqual(threads.Length, threadCount);
 
@@ -495,26 +494,24 @@ namespace C5UnitTests.concurrent
                 });
             }
 
-
-            for (int i = 0; i < threadCount; i++)
-            {
-                threads[i] = new Thread(() =>
-                {
-                    for (int j = 0; j < list.Count; j++)
-                    {
-                        Assert.AreEqual(list[i], queue.DeleteMax());
-                    }
-                });
-            }
-
-
             for (int i = 0; i < threadCount; i++) { threads[i].Start(); }
             try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
             catch (ThreadInterruptedException exn) { }
 
             //check if queue has correct structure.
-            Assert.IsTrue(queue.Check());
             Assert.AreEqual(list.Count, queue.Count);
+
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                Assert.AreEqual(list[i], queue.DeleteMin());
+            }
+
+            Assert.AreEqual(0, queue.Count);
+
+
+            list.Sort();
+            Assert.AreEqual(list[0], queue.DeleteMin());
+
         }
 
         [Test]
@@ -532,28 +529,36 @@ namespace C5UnitTests.concurrent
                 list.Add(new Random().Next(10000));
             }
             list.Sort();
+            //adds numbers to the queue
 
             for (int i = 0; i < threadCount; i++)
             {
                 threads[i] = new Thread(() =>
                 {
-                    for (int j = 0; j < list.Count; j++)
+                    for (int j = i * n; j < (j + 1) * n; j++)
                     {
-                        Assert.AreEqual(list[i], queue.DeleteMax());
+                        queue.Add(list[i]);
                     }
                 });
             }
-
-            Assert.AreEqual(0, queue.Count);
-
 
             for (int i = 0; i < threadCount; i++) { threads[i].Start(); }
             try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
             catch (ThreadInterruptedException exn) { }
 
             //check if queue has correct structure.
-            Assert.IsTrue(queue.Check());
             Assert.AreEqual(list.Count, queue.Count);
+
+            for (int i = list.Count-1; i >= 0; i--)
+            {
+                Assert.AreEqual(list[i], queue.DeleteMax());
+            }
+
+            Assert.AreEqual(0, queue.Count);
+
+            
+            list.Sort();
+            Assert.AreEqual(list[list.Count-1], queue.DeleteMax());
 
         }
 
