@@ -24,6 +24,7 @@ using C5;
 using System.Collections.Generic;
 using NUnit.Framework;
 using System.Threading;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
 namespace C5UnitTests.concurrent
@@ -144,7 +145,7 @@ namespace C5UnitTests.concurrent
             foreach (int e in elements) { queue.Add(e); }
             int[] testElements = (int[])queue.All();
             Assert.AreEqual(elements.Length, testElements.Length);
-            foreach(int e in elements)
+            foreach (int e in elements)
             {
                 int pos = Array.IndexOf(testElements, elements);
                 Assert.IsTrue(pos > -1);
@@ -179,6 +180,189 @@ namespace C5UnitTests.concurrent
             queue = null;
         }
 
+
+        [Test]
+        [Repeat(10)]
+        public void CountTest()
+        {
+            Assert.AreEqual(0, queue.Count);
+
+            List<int> list = new List<int>();
+            for (int i = 0; i < threadCount * 200; i++)
+            {
+                list.Add(new Random().Next(10000));
+            }
+
+            List<Thread> threads = new List<Thread>(threadCount);
+            for (int i = 0; i < threads.Count; i++)
+            {
+                Thread t = new Thread(() =>
+                {
+                    for (int y = i * 200; y < (i + 1) * 200; y++)
+                    {
+                        queue.Add(list[y]);
+                    }
+                });
+                threads.Add(t);
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Join();
+            }
+            Assert.AreEqual(list.Count, queue.Count);
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void IsEmptyTest()
+        {
+            Assert.IsTrue(queue.IsEmpty());
+
+            List<Thread> threads = new List<Thread>(threadCount);
+            List<int> list = new List<int>();
+
+            for (int i = 0; i < threadCount * 200; i++)
+            {
+                list.Add(new Random().Next(10000));
+            }
+
+            //Add elements to the queue            
+            for (int i = 0; i < threads.Count; i++)
+            {
+                Thread t = new Thread(() =>
+                {
+                    for (int y = i * 200; y < (i + 1) * 200; y++)
+                    {
+                        queue.Add(list[y]);
+                    }
+                });
+                threads.Add(t);
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Join();
+            }
+
+            Assert.IsFalse(queue.IsEmpty());
+
+            //delete elements from the queue
+            for (int i = 0; i < threads.Count; i++)
+            {
+                Thread t = new Thread(() =>
+                {
+                    for (int y = i * 200; y < (i + 1) * 200; y++)
+                    {
+                        queue.DeleteMax();
+                    }
+                });
+                threads.Add(t);
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Join();
+            }
+
+            Assert.IsTrue(queue.IsEmpty());
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void FindMaxTest()
+        {
+            Assert.Throws<NoSuchItemException>(() => queue.FindMax());
+
+            List<Thread> threads = new List<Thread>(threadCount);
+            List<int> list = new List<int>();
+
+            for (int i = 0; i < threadCount * 200; i++)
+            {
+                list.Add(new Random().Next(10000));
+            }
+
+            //Add elements to the queue            
+            for (int i = 0; i < threads.Count; i++)
+            {
+                Thread t = new Thread(() =>
+                {
+                    for (int y = i * 200; y < (i + 1) * 200; y++)
+                    {
+                        queue.Add(list[y]);
+                    }
+                });
+                threads.Add(t);
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Join();
+            }
+            list.Sort();
+            Assert.AreEqual(list[list.Count - 1], queue.FindMax());
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void FindMinTest()
+        {
+            Assert.Throws<NoSuchItemException>(() => queue.FindMin());
+
+            List<Thread> threads = new List<Thread>(threadCount);
+            List<int> list = new List<int>();
+
+            for (int i = 0; i < threadCount * 200; i++)
+            {
+                list.Add(new Random().Next(10000));
+            }
+
+            //Add elements to the queue            
+            for (int i = 0; i < threads.Count; i++)
+            {
+                Thread t = new Thread(() =>
+                {
+                    for (int y = i * 200; y < (i + 1) * 200; y++)
+                    {
+                        queue.Add(list[y]);
+                    }
+                });
+                threads.Add(t);
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            foreach (Thread t in threads)
+            {
+                t.Join();
+            }
+            list.Sort();
+            Assert.AreEqual(list[0], queue.FindMin());
+        }
+
         [Test]
         public void AddTest()
         {
@@ -190,8 +374,8 @@ namespace C5UnitTests.concurrent
             Array.Sort(stack);
 
             //define thread work: add to the queue even numbers. 
-           
-           
+
+
             Thread t1 = new Thread(() =>
             {
                 for (int i = 0; i < stack.Length; i++)
@@ -300,7 +484,7 @@ namespace C5UnitTests.concurrent
         public void DelteMinTest()
         {
 
-            
+
             int[] stack = new int[100];
             for (int i = 0; i < stack.Length; i++)
             {
@@ -312,7 +496,7 @@ namespace C5UnitTests.concurrent
 
         public void DeleteMaxTest()
         {
-            
+
         }
     }
 }
