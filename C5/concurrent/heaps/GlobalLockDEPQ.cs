@@ -5,8 +5,22 @@ using System.Text;
 
 namespace C5.concurrent
 {
+    [Serializable]
     public class GlobalLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
+        struct Interval
+        {
+            internal T first, last;
+        }
+
+        Interval[] heap;
+        int size;
+
+
+        public GlobalLockDEPQ(int capacity)
+        {
+            
+        }
         
         public int Count
         {
