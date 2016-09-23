@@ -1,8 +1,4 @@
 ﻿using System;
-<<<<<<< HEAD
-using System.Collections.Generic;
-=======
->>>>>>> 33a95ff6cefe242878b580af4080d6cb5ddeb047
 using SCG = System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,6 +22,7 @@ namespace C5.concurrent
         SCG.IEqualityComparer<T> itemEquelityComparer;
         Interval[] heap;
         int size;
+        #endregion
 
         public GlobalLockDEPQ() : this(16) { }
         
@@ -74,12 +71,15 @@ namespace C5.concurrent
             if (size == 0)
             throw new NoSuchItemException();
 
-            return heap[1].first;
+            return heap[1].last;
         }
 
         public T FindMin()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                throw new NoSuchItemException();
+
+            return heap[1].first;
         }
 
         public bool IsEmpty()
