@@ -143,7 +143,7 @@ namespace C5UnitTests.concurrent
             foreach (int e in elements) { queue.Add(e); }
             int[] testElements = (int[])queue.All();
             Assert.AreEqual(elements.Length, testElements.Length);
-            foreach(int e in elements)
+            foreach (int e in elements)
             {
                 int pos = Array.IndexOf(testElements, elements);
                 Assert.IsTrue(pos > -1);
@@ -170,12 +170,12 @@ namespace C5UnitTests.concurrent
         /// Enviroment.ProcessorCount is number of logical processors
         /// </summary>
         [SetUp]
-        
+
         public void Init()
         {
             queue = new GlobalLockDEPQ<int>();
             threadCount = Environment.ProcessorCount + 2;
-            range = threadCount*200;
+            range = threadCount * 200;
 
         }
 
@@ -257,67 +257,115 @@ namespace C5UnitTests.concurrent
             Thread[] threads = new Thread[threadCount];
             Assert.AreEqual(threads.Length, threadCount);
 
-            int[] stack = new int[100];
-            for (int i = 0; i < stack.Length; i++)
+            List<int> list = new List<int>();
+            for (int i = 0; i < range; i++)
             {
-                stack[i] = new Random().Next(0, range);
+                list.Add(new Random().Next(10000));
             }
-            Array.Sort(stack);
+            list.Sort();
 
-            //even numbers
-            for (int i = 0; i < threadCount/2; i++)
+            //adds even numbers to the queue with the first half of the threads
+            for (int i = 0; i < threadCount / 2; i++)
             {
                 threads[i] = new Thread(() =>
                 {
-                    for (int j = 0; j < stack.Length; j++)
+                    for (int j = 0; j < list.Count; j++)
                     {
                         if (j % 2 != 0)
-                            queue.Add(stack[i]);
+                            queue.Add(list[i]);
                     }
                 });
             }
-            //odds
-            for (int i = threadCount/2; i < threadCount; i++)
+            //adds odd numbers to the queue with the second half of the threads
+            for (int i = threadCount / 2; i < threadCount; i++)
             {
                 threads[i] = new Thread(() =>
                 {
-                    for (int j = 0; j < stack.Length; j++)
+                    for (int j = 0; j < list.Count; j++)
                     {
                         if (j % 2 != 1)
-                            queue.Add(stack[i]);
+                            queue.Add(list[i]);
                     }
                 });
             }
 
 
-            for (int i = 0; i < threadCount; i++){threads[i].Start();}
-            try{for (int i = 0; i < threadCount; i++) threads[i].Join();}
+            for (int i = 0; i < threadCount; i++) { threads[i].Start(); }
+            try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
             catch (ThreadInterruptedException exn) { }
 
-           // //check if queue has correct structure.
-           // Assert.IsTrue(queue.Check()); 
-           // Assert.AreEqual(stack.Length, queue.Count);
-           //
-           // //check if elements are deleted in order. 
-           // for (int i = 0; i < stack.Length; i++)
-           // {
-           //     Assert.AreEqual(stack[i], queue.DeleteMin());
-           // }
-           // Assert.AreEqual(0, queue.Count);
+            //check if queue has correct structure.
+            Assert.IsTrue(queue.Check());
+            Assert.AreEqual(list.Count, queue.Count);
+
         }
 
 
 
-       
+
         [Test]
         public void DelteMinTest()
         {
 
+            Thread[] threads = new Thread[threadCount];
+            Assert.AreEqual(threads.Length, threadCount);
+
+            List<int> list = new List<int>();
+            for (int i = 0; i < range; i++)
+            {
+                list.Add(new Random().Next(10000));
+            }
+            list.Sort();
+
+
+            for (int i = 0; i < threadCount; i++)
+            {
+                threads[i] = new Thread(() =>
+                {
+                    for (int j = 0; j < list.Count; j++)
+                    {
+                        Assert.AreEqual(list[i], queue.DeleteMax());
+                    }
+                });
+            }
+
+
+            for (int i = 0; i < threadCount; i++) { threads[i].Start(); }
+            try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
+            catch (ThreadInterruptedException exn) { }
         }
 
         public void DeleteMaxTest()
         {
-            
+
+            Thread[] threads = new Thread[threadCount];
+            Assert.AreEqual(threads.Length, threadCount);
+
+            List<int> list = new List<int>();
+            for (int i = 0; i < range; i++)
+            {
+                list.Add(new Random().Next(10000));
+            }
+            list.Sort();
+
+            for (int i = 0; i < threadCount; i++)
+            {
+                threads[i] = new Thread(() =>
+                {
+                    for (int j = 0; j < list.Count; j++)
+                    {
+                        Assert.AreEqual(list[i], queue.DeleteMax());
+                    }
+                });
+            }
+
+            Assert.AreEqual(0, queue.Count);
+
+
+            for (int i = 0; i < threadCount; i++) { threads[i].Start(); }
+            try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
+            catch (ThreadInterruptedException exn) { }
+
         }
     }
     #endregion
