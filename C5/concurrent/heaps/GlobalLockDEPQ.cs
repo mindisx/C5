@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SCG = System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -8,14 +9,19 @@ namespace C5.concurrent
     [Serializable]
     public class GlobalLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
+        #region fields
         struct Interval
         {
             internal T first, last;
+            public override string ToString() { return string.Format("[{0}; {1}]", first, last); }
         }
+
+        SCG.IComparer<T> comparer;
+        SCG.IEqualityComparer<T> itemequalityComparer;
 
         Interval[] heap;
         int size;
-
+        #endregion
 
         public GlobalLockDEPQ(int capacity)
         {
@@ -57,7 +63,10 @@ namespace C5.concurrent
 
         public T FindMax()
         {
-            throw new NotImplementedException();
+            if (heap.Length == 0)
+            throw new Excep();
+
+            return heap[1].first;
         }
 
         public T FindMin()
