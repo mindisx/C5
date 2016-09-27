@@ -24,6 +24,9 @@ namespace C5.concurrent
         int size;
         #endregion
 
+        /// <summary>
+        /// Default GlobalLockDEPQ is size 16
+        /// </summary>
         public GlobalLockDEPQ() : this(16) { }
         
         GlobalLockDEPQ(int capacity)
@@ -35,20 +38,33 @@ namespace C5.concurrent
         
         public int Count
         {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            get { return size; } 
         }
 
         public bool Add(T item)
         {
             throw new NotImplementedException();
+
         }
 
         public SCG.IEnumerable<T> All()
         {
-            throw new NotImplementedException();
+            
+            T[] al = new T[size];
+            for (int i = 0; i < size; i++)
+            {
+                if (i%2 == 0)
+                {
+                    al[i] = heap[i].first;
+                }
+                else
+                {
+                    al[i] = heap[i].last;
+                }
+
+            }
+            return al;
+
         }
 
         public bool Check()
@@ -69,7 +85,7 @@ namespace C5.concurrent
         public T FindMax()
         {
             if (size == 0)
-            throw new NoSuchItemException();
+                throw new NoSuchItemException();
 
             return heap[1].last;
         }
@@ -84,7 +100,8 @@ namespace C5.concurrent
 
         public bool IsEmpty()
         {
-            throw new NotImplementedException();
+            if (size == 0){ return true;}
+            return false;
         }
     }
 }
