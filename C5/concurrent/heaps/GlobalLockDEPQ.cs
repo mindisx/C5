@@ -8,15 +8,22 @@ namespace C5.concurrent
     [Serializable]
     public class GlobalLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
+        #region fields
         struct Interval
         {
             internal T first, last;
-            public override string ToString() { return string.Format("[{0}; {1}]", first, last); }
+
+            public override string ToString()
+            {
+                return string.Format("[{0}; {1}]", first, last);
+            }
         }
+
         SCG.IComparer<T> comparer;
         SCG.IEqualityComparer<T> itemEquelityComparer;
         Interval[] heap;
         int size;
+        #endregion
 
         public GlobalLockDEPQ() : this(16) { }
 
@@ -309,12 +316,18 @@ namespace C5.concurrent
 
         public T FindMax()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+            throw new NoSuchItemException();
+
+            return heap[1].last;
         }
 
         public T FindMin()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                throw new NoSuchItemException();
+
+            return heap[1].first;
         }
 
         public bool IsEmpty()
