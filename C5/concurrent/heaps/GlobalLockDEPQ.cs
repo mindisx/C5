@@ -187,20 +187,28 @@ namespace C5.concurrent
             lock (globalLock)
             {
 
-                T[] al = new T[size];
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+
+                T[] elements = new T[size];
+                int counter = 0;
                 for (int i = 0; i < size; i++)
                 {
                     if (i % 2 == 0)
                     {
-                        al[i] = heap[i].first;
+                        elements[counter] = heap[i / 2].first;
+                        counter++;
                     }
                     else
                     {
-                        al[i] = heap[i].last;
+                        elements[counter] = heap[i / 2].last;
+                        counter++;
                     }
 
                 }
-                return al;
+                return elements;
             }
 
         }
@@ -326,7 +334,7 @@ namespace C5.concurrent
             }
             else if (2 * l + 1 == size)//only left childs min element exist
             {
-                if(comparer.Compare(heap[l].first, heap[currentMax].last) > 0)
+                if (comparer.Compare(heap[l].first, heap[currentMax].last) > 0)
                 {
                     currentMax = l;
                     firstMax = true;
@@ -340,14 +348,14 @@ namespace C5.concurrent
             }
             else if (2 * r + 1 == size)
             {
-                if(comparer.Compare(heap[r].first, heap[currentMax].last) > 0)
+                if (comparer.Compare(heap[r].first, heap[currentMax].last) > 0)
                 {
                     currentMax = r;
                     firstMax = true;
                 }
             }
 
-            if(currentMax != cell)
+            if (currentMax != cell)
             {
                 if (firstMax)
                     swapFirstWithLast(currentMax, cell);
