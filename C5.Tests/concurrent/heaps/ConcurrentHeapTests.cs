@@ -130,8 +130,8 @@ namespace C5UnitTests.concurrent
             queue.Add(19);
             Assert.IsTrue(queue.Check());
             Assert.AreEqual(1, queue.DeleteMin());
-            Assert.AreEqual(19, queue.DeleteMax());
-            Assert.AreEqual(20, queue.DeleteMax());
+            Assert.AreEqual(19, queue.DeleteMin());
+            Assert.AreEqual(20, queue.DeleteMin());
         }
 
         [Test]
@@ -140,13 +140,16 @@ namespace C5UnitTests.concurrent
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.All());
 
-            int[] elements = new int[] { 1, 25, 7, 80, 32 };
+            int[] elements = new int[] { 1, 25, 7, 80, 32, 0 };
+            
             foreach (int e in elements) { queue.Add(e); }
+   
             int[] testElements = (int[])queue.All();
             Assert.AreEqual(elements.Length, testElements.Length);
             foreach (int e in elements)
             {
-                int pos = Array.IndexOf(testElements, elements);
+                int pos = Array.IndexOf(testElements, e);
+
                 Assert.IsTrue(pos > -1);
             }
         }
@@ -373,23 +376,26 @@ namespace C5UnitTests.concurrent
         [Repeat(10)]
         public void AddTest()
         {
+            Random rng = new Random();
             Thread[] threads = new Thread[threadCount];
             Assert.AreEqual(threads.Length, threadCount);
 
             List<int> list = new List<int>();
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < n*threadCount; i++)
             {
-                list.Add(new Random().Next(10000));
+                list.Add(rng.Next(10000));
             }
-
+            var Counter = 0;
             //adds numbers to the queue
             for (int i = 0; i < threadCount; i++)
             {
+                Counter++;
                 threads[i] = new Thread(() =>
                 {
-                    for (int j = i * n; j < (j + 1) * n; j++)
+                    int c = i;
+                    for (int j = c * n; j < ((c + 1) * n)-1; j++)
                     {
-                        queue.Add(list[i]);
+                        queue.Add(list[j]);
                     }
                 });
             }
@@ -398,8 +404,8 @@ namespace C5UnitTests.concurrent
             try { for (int i = 0; i < threadCount; i++) threads[i].Join(); }
             catch (ThreadInterruptedException exn) { }
 
-            Assert.IsTrue(queue.Check());
-            //Assert.AreEqual(list.Count, queue.Count);
+            //Assert.IsTrue(queue.Check());
+            Assert.AreEqual(list.Count, queue.Count);
 
             List<int> listTest = new List<int>();
             for (int i = 0; i < list.Count; i++)
