@@ -23,7 +23,7 @@ namespace C5.concurrent
         SCG.IEqualityComparer<T> itemEquelityComparer;
         Interval[] heap;
         int size;
-        private Object globalLock = new Object();
+        private static readonly Object globalLock = new Object();
         #endregion
 
         /// <summary>
@@ -48,8 +48,8 @@ namespace C5.concurrent
                 {
                     return size;
                 }
-                
-            } 
+
+            }
         }
 
         public bool Add(T item)
@@ -60,12 +60,12 @@ namespace C5.concurrent
                     return true;
                 return false;
             }
-           
+
         }
 
         private bool add(T item)
         {
-    
+
             if (size == 0)
             {
                 heap[0].first = item;
@@ -89,7 +89,7 @@ namespace C5.concurrent
                 {
                     updateFirst(i, tmp);    //move parent's max element to child node. 
                     updateLast(p, item);    //update parent max element to new element. 
-                    bubbleUpMax(i); //TODO: bubble up max from p node. 
+                    bubbleUpMax(p); //TODO: bubble up max from p node. 
                 }
                 else    //new item is smaller or equal to parent's max element
                 {
@@ -118,8 +118,8 @@ namespace C5.concurrent
             }
             size++;
             return true;
-            
-          
+
+
         }
 
         private void bubbleUpMax(int i)
@@ -142,7 +142,7 @@ namespace C5.concurrent
                         break;
                     }
                 }
-                updateLast(i, max);
+                updateLast(i, iv);
             }
         }
 
@@ -186,6 +186,7 @@ namespace C5.concurrent
         {
             lock (globalLock)
             {
+
                 T[] al = new T[size];
                 for (int i = 0; i < size; i++)
                 {
@@ -201,7 +202,7 @@ namespace C5.concurrent
                 }
                 return al;
             }
-            
+
         }
 
         public bool Check()
@@ -216,7 +217,7 @@ namespace C5.concurrent
 
                 return check(0, heap[0].first, heap[0].last);
             }
-            
+
         }
 
         private bool check(int i, T min, T max)
@@ -229,12 +230,12 @@ namespace C5.concurrent
             {
                 if (comparer.Compare(min, first) > 0)
                 {
-                 retval = false;
+                    retval = false;
                 }
 
                 if (comparer.Compare(first, max) > 0)
                 {
-                 retval = false;
+                    retval = false;
                 }
                 return retval;
             }
@@ -254,7 +255,7 @@ namespace C5.concurrent
                 {
                     retval = false;
                 }
-               
+
                 int l = 2 * i + 1, r = l + 1;
 
                 if (2 * l < size)
@@ -302,13 +303,13 @@ namespace C5.concurrent
                 }
                 return retval;
             }
-            
+
         }
 
         private bool heapifyMax(int cell)
         {
             bool swappedroot = false;
-            if(2*cell+1< size && comparer.Compare(heap[cell].first, heap[cell].last) < 0)
+            if (2 * cell + 1 < size && comparer.Compare(heap[cell].last, heap[cell].first) < 0)
             {
                 swappedroot = true;
                 swapFirstWithFirst(cell, cell);
@@ -317,14 +318,41 @@ namespace C5.concurrent
             int currentMax = cell;
             int l = 2 * cell + 1;
             int r = l + 1;
-            if (2 * l + 1 < size && comparer.Compare(heap[currentMax].last, heap[l].last) < 0)
-                currentMax = l;
-            if (2 * r + 1 < size && comparer.Compare(heap[currentMax].last, heap[r].last) < 0)
-                currentMax = r;
+            bool firstMax = false;
+            if (2 * l + 1 < size) //left child first and last exist
+            {
+                if (comparer.Compare(heap[l].last, heap[currentMax].last) > 0) //left child max element is greather 
+                    currentMax = l;
+            }
+            else if (2 * l + 1 == size)//only left childs min element exist
+            {
+                if(comparer.Compare(heap[l].first, heap[currentMax].last) > 0)
+                {
+                    currentMax = l;
+                    firstMax = true;
+                }
+            }
+
+            if (2 * r + 1 < size)
+            {
+                if (comparer.Compare(heap[r].last, heap[currentMax].last) > 0)
+                    currentMax = r;
+            }
+            else if (2 * r + 1 == size)
+            {
+                if(comparer.Compare(heap[r].first, heap[currentMax].last) > 0)
+                {
+                    currentMax = r;
+                    firstMax = true;
+                }
+            }
 
             if(currentMax != cell)
             {
-                swapLastWithLast(cell, currentMax);
+                if (firstMax)
+                    swapFirstWithLast(currentMax, cell);
+                else
+                    swapLastWithLast(currentMax, cell);
                 heapifyMax(currentMax);
             }
             return swappedroot;
@@ -332,9 +360,9 @@ namespace C5.concurrent
 
         private void swapLastWithLast(int cell1, int cell2)
         {
-            T last = heap[cell1].last;
-            updateLast(cell1, heap[cell2].last);
-            updateLast(cell2, last);
+            T last = heap[cell2].last;
+            updateLast(cell2, heap[cell1].last);
+            updateLast(cell1, last);
         }
 
         public T DeleteMin()
@@ -358,6 +386,7 @@ namespace C5.concurrent
                     if (size % 2 == 0)
                     {
                         updateFirst(0, heap[lastcell].last); //take last element in a heap and put as a root min. 
+                        heap[lastcell].last = default(T);
                     }
                     else
                     {
@@ -370,7 +399,7 @@ namespace C5.concurrent
                 return retval;
 
             }
-            
+
         }
 
         private bool heapifyMin(int cell)
@@ -430,7 +459,7 @@ namespace C5.concurrent
 
                 return heap[0].first;
             }
-           
+
         }
 
         public bool IsEmpty()
@@ -440,7 +469,7 @@ namespace C5.concurrent
                 if (size == 0) { return true; }
                 return false;
             }
-           
+
         }
     }
 }
