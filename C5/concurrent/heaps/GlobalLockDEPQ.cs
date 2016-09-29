@@ -44,23 +44,167 @@ namespace C5.concurrent
         {
             get
             {
-                lock (globalLock)
+                lock(globalLock)
                 {
                     return size;
                 }
-
             }
         }
 
         public bool Add(T item)
         {
-            lock (globalLock)
+            lock(globalLock)
             {
                 if (add(item))
                     return true;
                 return false;
             }
+        }
 
+        public SCG.IEnumerable<T> All()
+        {
+            lock(globalLock)
+            {
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+
+                T[] elements = new T[size];
+                int counter = 0;
+                for (int i = 0; i < size; i++)
+                {
+                    if (i % 2 == 0)
+                    {
+                        elements[counter] = heap[i / 2].first;
+                        counter++;
+                    }
+                    else
+                    {
+                        elements[counter] = heap[i / 2].last;
+                        counter++;
+                    }
+
+                }
+                return elements;
+            }
+        }
+
+        public bool Check()
+        {
+            lock(globalLock)
+            {
+                if (size == 0)
+                    return true;
+
+                if (size == 1)
+                    return (object)(heap[0].first) != null;
+
+                return check(0, heap[0].first, heap[0].last);
+            }
+        }
+
+        public T DeleteMax()
+        {
+            lock(globalLock)
+            {
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+
+                T retval;
+                if (size == 1) //if there is only one element in the heap, assign it as a return value.
+                {
+                    retval = heap[0].first;
+                    heap[0].first = default(T);
+                    size = 0;
+                }
+                else
+                {
+                    retval = heap[0].last;
+                    int lastcell = (size - 1) / 2;
+                    if (size % 2 == 0)
+                    {
+                        updateLast(0, heap[lastcell].last);
+                        heap[lastcell].last = default(T);
+                    }
+                    else
+                    {
+                        updateLast(0, heap[lastcell].first);
+                        heap[lastcell].first = default(T);
+                    }
+                    size--;
+                    heapifyMax(0);
+                }
+                return retval;
+            }
+        }
+
+        public T DeleteMin()
+        {
+            lock(globalLock)
+            {
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+
+                T retval = heap[0].first;
+                if (size == 1)
+                {
+                    size = 0;
+                    heap[0].first = default(T);
+                }
+                else
+                {
+                    int lastcell = (size - 1) / 2;
+                    if (size % 2 == 0)
+                    {
+                        updateFirst(0, heap[lastcell].last); //take last element in a heap and put as a root min. 
+                        heap[lastcell].last = default(T);
+                    }
+                    else
+                    {
+                        updateFirst(0, heap[lastcell].first);
+                        heap[lastcell].first = default(T);
+                    }
+                    size--;
+                    heapifyMin(0);
+                }
+                return retval;
+            }
+        }
+
+        public T FindMax()
+        {
+            lock(globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+
+                return heap[0].last;
+            }
+        }
+
+        public T FindMin()
+        {
+            lock(globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+
+                return heap[0].first;
+            }
+        }
+
+        public bool IsEmpty()
+        {
+            lock(globalLock)
+            {
+                if (size == 0) { return true; }
+                return false;
+            }
         }
 
         private bool add(T item)
@@ -182,52 +326,6 @@ namespace C5.concurrent
 
         }
 
-        public SCG.IEnumerable<T> All()
-        {
-            lock (globalLock)
-            {
-
-                if (size == 0)
-                {
-                    throw new NoSuchItemException();
-                }
-
-                T[] elements = new T[size];
-                int counter = 0;
-                for (int i = 0; i < size; i++)
-                {
-                    if (i % 2 == 0)
-                    {
-                        elements[counter] = heap[i / 2].first;
-                        counter++;
-                    }
-                    else
-                    {
-                        elements[counter] = heap[i / 2].last;
-                        counter++;
-                    }
-
-                }
-                return elements;
-            }
-
-        }
-
-        public bool Check()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    return true;
-
-                if (size == 1)
-                    return (object)(heap[0].first) != null;
-
-                return check(0, heap[0].first, heap[0].last);
-            }
-
-        }
-
         private bool check(int i, T min, T max)
         {
             bool retval = true;
@@ -276,51 +374,13 @@ namespace C5.concurrent
             return retval;
         }
 
-        public T DeleteMax()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                {
-                    throw new NoSuchItemException();
-                }
-
-                T retval;
-                if (size == 1) //if there is only one element in the heap, assign it as a return value.
-                {
-                    retval = heap[0].first;
-                    heap[0].first = default(T);
-                    size = 0;
-                }
-                else
-                {
-                    retval = heap[0].last;
-                    int lastcell = (size - 1) / 2;
-                    if (size % 2 == 0)
-                    {
-                        updateLast(0, heap[lastcell].last);
-                        heap[lastcell].last = default(T);
-                    }
-                    else
-                    {
-                        updateLast(0, heap[lastcell].first);
-                        heap[lastcell].first = default(T);
-                    }
-                    size--;
-                    heapifyMax(0);
-                }
-                return retval;
-            }
-
-        }
-
         private bool heapifyMax(int cell)
         {
             bool swappedroot = false;
             if (2 * cell + 1 < size && comparer.Compare(heap[cell].last, heap[cell].first) < 0)
             {
                 swappedroot = true;
-                swapFirstWithFirst(cell, cell);
+                swapFirstWithLast(cell, cell);
             }
 
             int currentMax = cell;
@@ -373,43 +433,6 @@ namespace C5.concurrent
             updateLast(cell1, last);
         }
 
-        public T DeleteMin()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                {
-                    throw new NoSuchItemException();
-                }
-
-                T retval = heap[0].first;
-                if (size == 1)
-                {
-                    size = 0;
-                    heap[0].first = default(T);
-                }
-                else
-                {
-                    int lastcell = (size - 1) / 2;
-                    if (size % 2 == 0)
-                    {
-                        updateFirst(0, heap[lastcell].last); //take last element in a heap and put as a root min. 
-                        heap[lastcell].last = default(T);
-                    }
-                    else
-                    {
-                        updateFirst(0, heap[lastcell].first);
-                        heap[lastcell].first = default(T);
-                    }
-                    size--;
-                    heapifyMin(0);
-                }
-                return retval;
-
-            }
-
-        }
-
         private bool heapifyMin(int cell)
         {
             bool swappedroot = false;
@@ -450,34 +473,5 @@ namespace C5.concurrent
             updateFirst(cell1, first);
         }
 
-        public T FindMax()
-        {
-            if (size == 0)
-                throw new NoSuchItemException();
-
-            return heap[0].last;
-        }
-
-        public T FindMin()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    throw new NoSuchItemException();
-
-                return heap[0].first;
-            }
-
-        }
-
-        public bool IsEmpty()
-        {
-            lock (globalLock)
-            {
-                if (size == 0) { return true; }
-                return false;
-            }
-
-        }
     }
 }
