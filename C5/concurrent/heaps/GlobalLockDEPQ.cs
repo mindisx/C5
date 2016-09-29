@@ -186,20 +186,28 @@ namespace C5.concurrent
         {
             lock (globalLock)
             {
-                T[] al = new T[size];
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+
+                T[] elements = new T[size];
+                int counter = 0;
                 for (int i = 0; i < size; i++)
                 {
                     if (i % 2 == 0)
                     {
-                        al[i] = heap[i].first;
+                        elements[counter] = heap[i/2].first;
+                        counter++;
                     }
                     else
                     {
-                        al[i] = heap[i].last;
+                        elements[counter] = heap[i/2].last;
+                        counter++;
                     }
 
                 }
-                return al;
+                return elements;
             }
             
         }
