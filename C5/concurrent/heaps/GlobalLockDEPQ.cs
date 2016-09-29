@@ -42,7 +42,14 @@ namespace C5.concurrent
 
         public int Count
         {
-            get { return size; } 
+            get
+            {
+                lock (globalLock)
+                {
+                    return size;
+                }
+                
+            } 
         }
 
         public bool Add(T item)
@@ -115,8 +122,6 @@ namespace C5.concurrent
           
         }
 
-
-
         private void bubbleUpMax(int i)
         {
             if (i > 0)
@@ -179,31 +184,87 @@ namespace C5.concurrent
 
         public SCG.IEnumerable<T> All()
         {
-            
-            T[] al = new T[size];
-            for (int i = 0; i < size; i++)
+            lock (globalLock)
             {
-                if (i%2 == 0)
+                T[] al = new T[size];
+                for (int i = 0; i < size; i++)
                 {
-                    al[i] = heap[i].first;
-                }
-                else
-                {
-                    al[i] = heap[i].last;
-                }
+                    if (i % 2 == 0)
+                    {
+                        al[i] = heap[i].first;
+                    }
+                    else
+                    {
+                        al[i] = heap[i].last;
+                    }
 
+                }
+                return al;
             }
-            return al;
-
+            
         }
 
         public bool Check()
         {
             lock (globalLock)
             {
-                throw new NotImplementedException();
+                if (size == 0)
+                    return true;
+
+                if (size == 1)
+                    return (object)(heap[0].first) != null;
+
+                return check(0, heap[0].first, heap[0].last);
             }
             
+        }
+
+        private bool check(int i, T min, T max)
+        {
+            bool retval = true;
+            Interval interval = heap[i];
+            T first = interval.first, last = interval.last;
+
+            if (2 * i + 1 == size)
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                 retval = false;
+                }
+
+                if (comparer.Compare(first, max) > 0)
+                {
+                 retval = false;
+                }
+                return retval;
+            }
+            else
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(first, last) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(last, max) > 0)
+                {
+                    retval = false;
+                }
+               
+                int l = 2 * i + 1, r = l + 1;
+
+                if (2 * l < size)
+                    retval = retval && check(l, first, last);
+
+                if (2 * r < size)
+                    retval = retval && check(r, first, last);
+            }
+
+            return retval;
         }
 
         public T DeleteMax()
@@ -357,21 +418,29 @@ namespace C5.concurrent
             if (size == 0)
                 throw new NoSuchItemException();
 
-            return heap[1].last;
+            return heap[0].last;
         }
 
         public T FindMin()
         {
-            if (size == 0)
-                throw new NoSuchItemException();
+            lock (globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
 
-            return heap[1].first;
+                return heap[0].first;
+            }
+           
         }
 
         public bool IsEmpty()
         {
-            if (size == 0){ return true;}
-            return false;
+            lock (globalLock)
+            {
+                if (size == 0) { return true; }
+                return false;
+            }
+           
         }
     }
 }
