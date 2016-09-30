@@ -29,7 +29,7 @@ namespace Benchmark
             // Create a config object and set the values
             // TEST RUN
             config.WarmupRuns = 2;
-            config.Threads = new int[] { 1, 2, 4, 8 };
+            config.Threads = new int[] { 1, 2, 4, 6, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30 };
             config.NumberOfElements = new int[] { 10000, 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
@@ -40,8 +40,8 @@ namespace Benchmark
 
             // CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
             config.WarmupRuns = 4;
-            config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
-            config.Threads = new int[] { 1, 2 };
+            //config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
+            //config.Threads = new int[] { 1, 2 };
             config.NumberOfElements = new int[] { 100000, 1000000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 120;
@@ -84,7 +84,7 @@ namespace Benchmark
                 customList.Add(element);
             }
 
-            customDictionary = new ConcurrentIntervalHeap<string>();
+            customDictionary = new GlobalLockDEPQ<string>();
 
             timer.Reset();
 
@@ -106,7 +106,7 @@ namespace Benchmark
             timer.Stop();
             Console.WriteLine("Custom time Get:   " + timer.ElapsedTicks);
 
-            standardDictionary = new ConcurrentIntervalHeap<String>();
+            standardDictionary = new GlobalLockDEPQ<string>();
 
             timer.Reset();
 
@@ -164,7 +164,7 @@ namespace Benchmark
                     {
                         datafile.Log("\n\n" + "IntervalHeap");
                         Console.WriteLine("IntervalHeap" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                        new Benchmark().BenchMark(config, typeof(ConcurrentIntervalHeap<int>));
+                        new Benchmark().BenchMark(config, typeof(GlobalLockDEPQ<int>));
                         numberOfTests += 1;
                     }
 
@@ -208,8 +208,8 @@ namespace Benchmark
                 while ((SecondsPerTestTimer.ElapsedMilliseconds / 1000.0) < ((config.SecondsPerTest * 1.0) / config.Threads[config.Threads.Length - 1]) || runs <= ((config.WarmupRuns) + config.Threads[0]))
                 {
                     //dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
-                    dictionary = new ConcurrentIntervalHeap<int>(); // Create the correct dictionary for this run
-
+                    dictionary = new GlobalLockDEPQ<int>(); // Create the correct dictionary for this run
+                    
                     // Get tree to correct size before we start, if applicable.  
                     if (config.Prefill)
                     {
