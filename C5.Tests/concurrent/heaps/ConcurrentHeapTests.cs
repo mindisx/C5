@@ -190,8 +190,8 @@ namespace C5UnitTests.concurrent
         }
 
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
+        //[Repeat(10)]
         public void CountTest()
         {
             Assert.AreEqual(0, queue.Count);
@@ -237,8 +237,8 @@ namespace C5UnitTests.concurrent
             Assert.AreEqual(0, queue.Count);
         }
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
+        //[Repeat(10)]
         public void IsEmptyTest()
         {
             Assert.IsTrue(queue.IsEmpty());
@@ -286,8 +286,8 @@ namespace C5UnitTests.concurrent
             Assert.IsTrue(queue.IsEmpty());
         }
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
+        //[Repeat(10)]
         public void FindMaxTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.FindMax());
@@ -325,8 +325,8 @@ namespace C5UnitTests.concurrent
             Assert.AreEqual(list[list.Count - 1], queue.FindMax());
         }
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
+        //[Repeat(10)]
         public void FindMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.FindMin());
@@ -365,8 +365,8 @@ namespace C5UnitTests.concurrent
         }
 
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
+        //[Repeat(10)]
         public void AddTest()
         {
             Random rng = new Random();
@@ -414,8 +414,8 @@ namespace C5UnitTests.concurrent
             }
         }
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
+        //[Repeat(10)]
         public void AllTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.All());
@@ -458,8 +458,8 @@ namespace C5UnitTests.concurrent
             }
         }
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
+        //[Repeat(10)]
         public void DeleteMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
