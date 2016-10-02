@@ -401,7 +401,7 @@ namespace C5UnitTests.concurrent
             Assert.AreEqual(list.Count, queue.Count);
 
             List<int> listTest = new List<int>();
-            while(queue.Count > 0)
+            while (queue.Count > 0)
             {
                 listTest.Add(queue.DeleteMax());
             }
@@ -545,18 +545,110 @@ namespace C5UnitTests.concurrent
             list = list.OrderByDescending(i => i).ToList();
             for (int i = 0; i < list.Count; i++)
             {
-                int o = list[i];
-                int d = queue.FindMax();
-                if (o != d)
-                {
-                    i = i;
-                }
-                d = queue.DeleteMax();
-                Assert.AreEqual(o, d);
+                Assert.AreEqual(list[i], queue.FindMax());
             }
 
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
+        }
+
+
+        [Test]
+        [Repeat(10)]
+        public void ConcurrentTest()
+        {
+            int insertPercent = 35;
+            int deleteMinPercent = 20;
+            int deleteMaxPercent = 20;
+            int allPercent = 15;
+            int[] threads = new int[threadCount];
+            for (int i = 0; i < threads.Length; i++)
+                threads[i] = i;
+            ConcurrentBag<int> cinsertBag = new ConcurrentBag<int>();
+            ConcurrentBag<int> cdeleteBag = new ConcurrentBag<int>();
+            Parallel.ForEach(threads, (t) =>
+            {
+                List<int> insertbag = new List<int>();
+                List<int> deletebag = new List<int>();
+                int iterations = 1000;
+                while (iterations != 0)
+                {
+                    Random rng = new Random();
+                    int percent = rng.Next(0, 100);
+                    if (percent >= 100 - insertPercent)
+                    {
+                        int element = rng.Next(100);
+                        insertbag.Add(element);
+                        queue.Add(element);
+                    }
+                    else if (percent >= 100 - insertPercent - deleteMinPercent)
+                    {
+                        try
+                        {
+                            if (!queue.IsEmpty())
+                            {
+                                int element = queue.DeleteMin();
+                                deletebag.Add(element);
+                            }
+                        }
+                        catch (NoSuchItemException e)
+                        {
+                            //ignore
+                        }
+                    }
+                    else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent)
+                    {
+                        try
+                        {
+                            if (!queue.IsEmpty())
+                            {
+                                int element = queue.DeleteMax();
+                                deletebag.Add(element);
+                            }
+                        }
+                        catch (NoSuchItemException e)
+                        {
+                            //ignore
+                        }
+                    }
+                    else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent - allPercent)
+                    {
+                        try
+                        {
+                            int[] testlist = (int[])queue.All();
+                        }
+                        catch (NoSuchItemException e)
+                        {
+                            //ignore
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            if (!queue.IsEmpty())
+                            {
+                                int maxelement = queue.FindMax();
+                                int minelement = queue.FindMin();
+                            }
+                        }
+                        catch (NoSuchItemException e)
+                        {
+                            //ignore
+                        }
+                    }
+                    iterations--;
+                }
+
+                foreach (int i in insertbag)
+                    cinsertBag.Add(i);
+
+                foreach (int i in deletebag)
+                    cdeleteBag.Add(i);
+
+            });
+
+            Assert.AreEqual(cinsertBag.Count, cdeleteBag.Count + queue.Count);
         }
     }
     #endregion
