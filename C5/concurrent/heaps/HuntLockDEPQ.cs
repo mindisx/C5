@@ -9,6 +9,7 @@ namespace C5.concurrent.heaps
         struct Interval
         {
             internal Node first, last;
+            internal static object intervalLock = new object();
 
             public override string ToString()
             {
@@ -48,10 +49,9 @@ namespace C5.concurrent.heaps
 
         public int Count
         {
-
             get
             {
-                lock ()
+                lock (globalLock)
                 {
                     return size;
                 }
