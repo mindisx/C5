@@ -43,13 +43,19 @@ namespace C5.concurrent.heaps
             while (lenght < capacity)  lenght <<= 1; //lenght is always equal to 2 power by some number. 
             heap = new Interval[lenght];
         }
+        
 
         public int Count
         {
+
             get
             {
-                throw new NotImplementedException();
+                lock ()
+                {
+                    return size;
+                }
             }
+
         }
 
         public bool Add(T item)
