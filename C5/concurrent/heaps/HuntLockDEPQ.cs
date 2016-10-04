@@ -91,5 +91,38 @@ namespace C5.concurrent.heaps
         {
             throw new NotImplementedException();
         }
+
+
+        private void updateFirst(int cell, T item)
+        {
+            heap[cell].first = item;
+
+        }
+
+        private void updateLast(int cell, T item)
+        {
+            heap[cell].last = item;
+        }
+
+        private void swapLastWithLast(int cell1, int cell2)
+        {
+            T last = heap[cell2].last;
+            updateLast(cell2, heap[cell1].last);
+            updateLast(cell1, last);
+        }
+
+        private void swapFirstWithLast(int cell1, int cell2)
+        {
+            T first = heap[cell1].first;
+            updateFirst(cell1, heap[cell2].last);
+            updateLast(cell2, first);
+        }
+
+        private void swapFirstWithFirst(int cell1, int cell2)
+        {
+            T first = heap[cell2].first;
+            updateFirst(cell2, heap[cell1].first);
+            updateFirst(cell1, first);
+        }
     }
 }
