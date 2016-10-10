@@ -6,10 +6,21 @@ namespace C5.concurrent.heaps
 {
     class HuntLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
-        struct Interval
+        #region fields
+        private struct Interval
         {
             internal Node first, last;
             internal static object intervalLock = new object();
+
+            public object Lock
+            {
+                get
+                {
+                    return intervalLock;
+                }
+            }
+
+            
 
             public override string ToString()
             {
@@ -17,10 +28,18 @@ namespace C5.concurrent.heaps
             }
         }
 
-        struct Node
+        private struct Node
         {
             internal static object nodeLock = new object();
+            public object Lock
+            {
+                get
+                {
+                    return nodeLock;
+                }
+            }
             internal T element;
+            // -1 avalible -2 empty
             internal int tag;
             public override string ToString()
             {
@@ -30,10 +49,26 @@ namespace C5.concurrent.heaps
 
         private static object globalLock = new object();
 
+        //private T lastCell;
+
         SCG.IComparer<T> comparer;
         SCG.IEqualityComparer<T> itemEquelityComparer;
         Interval[] heap;
-        int size;
+        volatile int size;
+
+
+        private int Avalible
+        {
+            get { return -1; }
+        }
+
+        private int Empty 
+        {
+            get { return -2; }
+
+        }
+
+        #endregion
 
         public HuntLockDEPQ() : this(16) { }
 
@@ -81,8 +116,55 @@ namespace C5.concurrent.heaps
 
         public T DeleteMin()
         {
-            throw new NotImplementedException();
+            Interval lastCell;
+            //Hunt: grab item from bottom to replace to-be-delated top item
+            lock (globalLock)
+            {
+                if (Count == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+                //re-entrant lock on count
+                lastCell = heap[Count/2];
+
+            }
+            lock (lastCell.Lock)
+            {
+                lastCell.first.tag = Empty;
+                lastCell.last.tag = Empty;
+            }
+
+            
+            //Hunt: Lock first item stop if only iteam in the heap
+            lock (heap[0].first.Lock)
+            {
+                if (size == 1)
+                {
+                    size = 0;
+                    return heap[0].first.element;
+                }
+                //replace tio item with item at the bottom
+                updateFirst(0, lastCell.first.element);
+                heap[0].first.tag = Avalible;
+
+            }
+
+            int i = 0;
+            size--;
+            while (i < size / 2)
+            {
+                
+            }
+
+
+            return default(T);
+
+
         }
+
+
+       
+        
 
         public T FindMax()
         {
@@ -103,6 +185,7 @@ namespace C5.concurrent.heaps
         private void updateFirst(int cell, T item)
         {
             heap[cell].first.element = item;
+            //sets the pid
             heap[cell].first.tag = Thread.CurrentThread.ManagedThreadId;
 
         }
@@ -110,6 +193,7 @@ namespace C5.concurrent.heaps
         private void updateLast(int cell, T item)
         {
             heap[cell].last.element = item;
+            //sets the pid
             heap[cell].last.tag = Thread.CurrentThread.ManagedThreadId;
         }
 
