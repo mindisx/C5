@@ -109,7 +109,6 @@ namespace C5.concurrent.heaps
         {
             int s = 0;
             bool bubbleupmax = false;
-            bool firstelement = false;
             int i = 0;
             /* add new node to an end of the heap */
             lock (globalLock)//lock heap
@@ -145,7 +144,7 @@ namespace C5.concurrent.heaps
                     firstelement = true;
                 }
 
-                if (!firstelement)
+                if (s!=0) //not the first element
                 {
                     if (s % 2 == 0)
                     {
