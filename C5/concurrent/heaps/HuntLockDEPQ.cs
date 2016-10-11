@@ -129,50 +129,48 @@ namespace C5.concurrent
             }
         }
 
-        private void resize()
+        private object[] resize()
         {
-            lockAll(() =>
+            return lockAll(() =>
             {
+                object[] newLocks = new object[heap.Length * 2];
                 Interval[] newHeap = new Interval[heap.Length * 2];
-                object[] newLocks = new object[locks.Length * 2];
-                for (int y = 0; y < heap.Length; y++)
+                for (int y = 0; y < newHeap.Length; y++)
                 {
                     if (y < heap.Length)
                     {
                         newHeap[y] = heap[y];
-                        newLocks[y] = locks[y];
                     }
                     else
                     {
                         Interval interval = new Interval();
                         interval.firstTag = -2;
                         interval.lastTag = -2;
-                        newLocks[y] = interval.intervalLock;
                         newHeap[y] = interval;
                     }
+                    newLocks[y] = newHeap[y].intervalLock;
                 }
-                locks = newLocks;
                 heap = newHeap;
-                return true;
+                return newLocks;
             });
         }
 
 
-        private void lockAll(Func<bool> action)
+        private object[] lockAll(Func<object[]> action)
         {
-            lockAll(0, action);
+            return lockAll(0, action);
         }
-        private void lockAll(int i, Func<bool> action)
+        private object[] lockAll(int i, Func<object[]> action)
         {
-            if (i >= heap.Length)
+            if (i >= locks.Length)
             {
-                action();
+                return action();
             }
             else
             {
                 lock (locks[i])
                 {
-                    lockAll(i + 1, action);
+                    return lockAll(i + 1, action);
                 }
             }
         }
@@ -189,9 +187,9 @@ namespace C5.concurrent
                 size++; //increment size
                 i = s / 2;
 
-                if (s > heap.Length)
+                if (s == heap.Length * 2)
                 {
-                    resize();
+                   locks =  resize();
                 }
                 if (s == 0)
                 {
@@ -206,11 +204,34 @@ namespace C5.concurrent
                 {
                     if (s % 2 == 0)
                     {
-                        lock (heap[i].intervalLock)//lock last interval node
+                        int p = (i + 1) / 2 - 1;
+                        lock (heap[p].intervalLock)
                         {
-                            heap[i].first = item;
-                            heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
-                        }//unlock interval node
+                            lock (heap[i].intervalLock)//lock last interval node
+                            {
+                                heap[i].first = item;
+                                heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
+                                if (comparer.Compare(heap[i].first, heap[p].last) > 0)  //new element is smaller than current min element.
+                                {
+                                    swapFirstWithLast(i, p);
+                                    i = p;
+                                    bubbleupmax = true;
+                                }
+                                else
+                                {
+                                    if (comparer.Compare(heap[i].last, heap[p].first) < 0)  //parent's min element is smaller than new element. 
+                                    {
+                                        bubbleupmax = false;
+                                    }
+                                    else
+                                    {
+                                        heap[i].firstTag = Available;
+                                        return true;
+                                    }
+                                    
+                                }
+                            }//unlock interval node
+                        }
                     }
                     else
                     {
@@ -218,65 +239,16 @@ namespace C5.concurrent
                         {
                             heap[i].last = item;
                             heap[i].lastTag = Thread.CurrentThread.ManagedThreadId;
+                            if (comparer.Compare(heap[i].last, heap[i].first) < 0)
+                            {
+                                swapFirstWithLast(i, i);
+                                bubbleupmax = false;
+                            }
+                            else
+                            {
+                                bubbleupmax = true;
+                            }
                         }//unlock interval 
-                    }
-                }
-
-
-                if (s != 0) //not the first element
-                {
-                    if (s % 2 == 0)
-                    {
-                        int p = (i + 1) / 2 - 1;
-                        lock (heap[p].intervalLock) //lock last interval node
-                        {
-                            lock (heap[i].intervalLock)
-                            {
-                                if (heap[p].lastTag == Available && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId)
-                                {
-                                    if (comparer.Compare(heap[i].first, heap[p].last) > 0)  //new element is smaller than current min element.
-                                    {
-                                        swapFirstWithLast(i, p);
-                                        i = p;
-                                        bubbleupmax = true;
-                                    }
-                                }
-                                else if (heap[p].lastTag == Empty)
-                                {
-                                    return true;
-                                }
-                                else if (heap[i].firstTag != Thread.CurrentThread.ManagedThreadId)
-                                {
-                                    return true;
-                                }
-                            }//unlock node
-                        } //unlock parent max heap node
-                    }
-                    else
-                    {
-                        lock (heap[i].intervalLock)
-                        {
-                            if (heap[i].firstTag == Available && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
-                            {
-                                if (comparer.Compare(heap[i].last, heap[i].first) < 0)
-                                {
-                                    swapFirstWithLast(i, i);
-                                    bubbleupmax = false;
-                                }
-                                else
-                                {
-                                    bubbleupmax = true;
-                                }
-                            }
-                            else if (heap[i].firstTag == Empty)
-                            {
-                                return true;
-                            }
-                            else if (heap[i].lastTag != Thread.CurrentThread.ManagedThreadId)
-                            {
-                                return true;
-                            }
-                        }//unlock node
                     }
                 }
             } //unlock heap
@@ -300,7 +272,6 @@ namespace C5.concurrent
 
         private void bubbleUpMax(int i)
         {
-
             while (i > 0)
             {
                 int p = (i + 1) / 2 - 1;
@@ -308,15 +279,12 @@ namespace C5.concurrent
                 {
                     lock (heap[i].intervalLock)
                     {
-                        T max = heap[i].last;
-                        T iv = max;
-                        p = (i + 1) / 2 - 1;
+                       p = (i + 1) / 2 - 1;
                         if (heap[p].lastTag == Available && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
                         {
-                            if (comparer.Compare(iv, max = heap[p].last) > 0)
+                            if (comparer.Compare(heap[i].last, heap[p].last) > 0)
                             {
                                 swapLastWithLast(i, p);
-                                max = iv;
                                 i = p;
                             }
                             else
@@ -357,15 +325,12 @@ namespace C5.concurrent
                 {
                     lock (heap[i].intervalLock)
                     {
-                        T min = heap[i].first;
-                        T iv = min;
                         p = (i + 1) / 2 - 1;
                         if (heap[p].firstTag == Available && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId)
                         {
-                            if (comparer.Compare(iv, min = heap[p].first) < 0)
+                            if (comparer.Compare(heap[i].first, heap[p].first) < 0)
                             {
                                 swapFirstWithFirst(i, p);
-                                min = iv;
                                 i = p;
                             }
                             else
