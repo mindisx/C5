@@ -59,12 +59,12 @@ namespace C5.concurrent.heaps
 
         private int Avalible
         {
-            get { return -1; }
+            get { return -2; }
         }
 
         private int Empty 
         {
-            get { return -2; }
+            get { return -1; }
 
         }
 
@@ -108,6 +108,54 @@ namespace C5.concurrent.heaps
         {
             throw new NotImplementedException();
         }
+        x
+        private bool check(T min, T max)
+        {
+            bool retval = true;
+            Interval interval = heap[i];
+            T first = interval.first, last = interval.last;
+
+            if (2 * i + 1 == size)
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(first, max) > 0)
+                {
+                    retval = false;
+                }
+                return retval;
+            }
+            else
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(first, last) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(last, max) > 0)
+                {
+                    retval = false;
+                }
+
+                int l = 2 * i + 1, r = l + 1;
+
+                if (2 * l < size)
+                    retval = retval && check(l, first, last);
+
+                if (2 * r < size)
+                    retval = retval && check(r, first, last);
+            }
+
+            return retval;
+        }
 
         public T DeleteMax()
         {
@@ -116,44 +164,84 @@ namespace C5.concurrent.heaps
 
         public T DeleteMin()
         {
-            Interval lastCell;
+            int lastCell;
+            int localSize = 0;
+            int i = 0;
+
             //Hunt: grab item from bottom to replace to-be-delated top item
             lock (globalLock)
             {
-                if (Count == 0)
+                if (size == 0)
                 {
                     throw new NoSuchItemException();
                 }
-                //re-entrant lock on count
-                lastCell = heap[Count/2];
-
+                localSize = size;
+                size--;
+                lastCell = (localSize-1)/2;
+                
             }
-            lock (lastCell.Lock)
+
+            lock (heap[lastCell].Lock)
             {
-                lastCell.first.tag = Empty;
-                lastCell.last.tag = Empty;
+                lock (heap[lastCell].first.Lock)
+                {
+                    heap[lastCell].first.tag = Empty;
+                }
+                
             }
 
             
             //Hunt: Lock first item stop if only iteam in the heap
-            lock (heap[0].first.Lock)
+            lock (globalLock)
             {
                 if (size == 1)
                 {
                     size = 0;
-                    return heap[0].first.element;
+                    lock (heap[0].Lock)
+                    {
+                        lock (heap[0].first.Lock)
+                        {
+                            return heap[0].first.element;
+                        }
+                    }                                    
                 }
-                //replace tio item with item at the bottom
-                updateFirst(0, lastCell.first.element);
-                heap[0].first.tag = Avalible;
-
             }
 
-            int i = 0;
-            size--;
-            while (i < size / 2)
+            lock (heap[0].Lock)
             {
-                
+                lock (heap[0].first.Lock)
+                {
+                    //replace the top item with the "bottom" or last element
+                    updateFirst(0, heap[lastCell].first.element);
+                    heap[0].first.tag = Avalible;
+
+                    //check that the new top min element (first) isent greater then the top Max(last) element. (vice-versa for delete-max)
+                    lock (heap[0].last.Lock)
+                    {
+                        T min = heap[0].first.element;
+                        int minTag = heap[0].first.tag;
+                        T max = heap[0].last.element;
+                        int maxTag = heap[0].last.tag;
+                    }
+                   
+                    
+                    
+                    if (comparer.Compare())
+                    {
+                        var tempFirst = heap[0].first;
+                        var tempLast = heap[0].last;
+                        heap[0].first = tempLast;
+                        heap[0].last = tempFirst;
+                    }
+                }        
+              
+            }
+
+            //heapify
+            // i == 0 aka first element in the heap
+            while (i < localSize/2)
+            {
+                var left = (i + 1)*2;
             }
 
 
