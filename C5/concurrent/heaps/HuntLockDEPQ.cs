@@ -2,31 +2,33 @@
 using SCG = System.Collections.Generic;
 using System.Threading;
 
-namespace C5.concurrent.heaps
+namespace C5.concurrent
 {
     class HuntLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
         private class Interval
         {
-            internal Node first, last;
+            internal T first, last;
             internal object intervalLock = new object();
+            internal int firstTag, lastTag;
 
             public override string ToString()
             {
-                return string.Format("[{0}; {1}]", first.ToString(), last.ToString());
+                return string.Format("[{0}; {1}]", first, last);
             }
         }
 
-        private class Node
+        private int Available
         {
-            internal object nodeLock = new object();
-            internal T element;
-            internal int tag;
-            public override string ToString()
-            {
-                return string.Format("[{0}]", element);
-            }
+            get { return -2; }
         }
+
+
+        private int Empty
+        {
+            get { return -1; }
+        }
+
 
         private static object globalLock = new object();
 
@@ -46,7 +48,10 @@ namespace C5.concurrent.heaps
             heap = new Interval[lenght];
             for (int i = 0; i < lenght; i++)
             {
-                heap[i] = new Interval();
+                Interval interval = new Interval();
+                interval.firstTag = -2;
+                interval.lastTag = -2;
+                heap[i] = interval;
             }
         }
 
@@ -92,17 +97,22 @@ namespace C5.concurrent.heaps
 
         public T FindMax()
         {
-            throw new NotImplementedException();
+            return heap[0].last;
         }
 
         public T FindMin()
         {
-            throw new NotImplementedException();
+            return heap[0].first;
         }
 
         public bool IsEmpty()
         {
-            throw new NotImplementedException();
+            lock (globalLock)
+            {
+                if (size == 0)
+                    return true;
+                return false;
+            }
         }
 
         private bool add(T item)
@@ -116,19 +126,34 @@ namespace C5.concurrent.heaps
                 s = size; // get size
                 size++; //increment size
                 i = s / 2;
+
                 if (s > heap.Length)
                 {
                     Interval[] tempheap = new Interval[heap.Length * 2];
                     for (int y = 0; y < tempheap.Length; y++)
                     {
                         if (y < heap.Length)
+                        {
                             tempheap[y] = heap[y];
+                        }
                         else
-                            tempheap[y] = new Interval();
+                        {
+                            Node first = new Node();
+                            first.element = default(T);
+                            first.tag = -1;
+                            Node last = new Node();
+                            last.element = default(T);
+                            last.tag = -1;
+
+                            Interval interval = new Interval();
+                            interval.first = first;
+                            interval.last = last;
+
+                            tempheap[y] = interval;
+                        }
                     }
                     heap = tempheap;
                 }
-
                 if (s == 0)
                 {
                     lock (heap[i].intervalLock)//lock last interval node
@@ -141,75 +166,101 @@ namespace C5.concurrent.heaps
                             heap[0].first = node;
                         }//unlock node
                     }//unlock interval node
-                    firstelement = true;
                 }
 
-                if (s!=0) //not the first element
+                if (s != 0)
                 {
                     if (s % 2 == 0)
                     {
-                        int p = (i + 1) / 2 - 1;
-                        lock (heap[p].intervalLock)
+                        lock (heap[i].intervalLock)//lock last interval node
                         {
-                            lock (heap[p].last.nodeLock) //lock last interval node
+                            Node node = new Node();
+                            lock (node.nodeLock)
                             {
-                                lock (heap[i].intervalLock)
-                                {
-                                    Node parentMaxNode = heap[p].last;
-                                    Node node = new Node();
-                                    lock (node.nodeLock)
-                                    {
-                                        node.element = item;
-                                        node.tag = Thread.CurrentThread.ManagedThreadId;
-
-                                        if (comparer.Compare(node.element, parentMaxNode.element) > 0)  //new element is smaller than current min element.
-                                        {
-                                            heap[p].last = node;
-                                            heap[i].first = parentMaxNode;
-                                            i = p;
-                                            bubbleupmax = true;
-                                        }
-                                        else
-                                        {
-                                            heap[s / 2].first = node;
-                                            if (comparer.Compare(node.element, heap[p].first.element) < 0)
-                                                bubbleupmax = false;
-                                        }
-                                    }//unlock node
-                                } //unlock interval node
-                            } //unlock parent max heap node
-                        }//unlock paren interval node
+                                node.element = item;
+                                node.tag = Thread.CurrentThread.ManagedThreadId;
+                                heap[i].first = node;
+                            }//unlock node
+                        }//unlock interval node
                     }
                     else
                     {
-                        lock (heap[i].intervalLock)
+                        lock (heap[i].intervalLock)//lock last interval node
                         {
-                            lock (heap[i].first.nodeLock)
+                            Node node = new Node();
+                            lock (node.nodeLock)
                             {
-                                Node siblingMinNode = heap[i].first;
-                                Node node = new Node();
-                                lock (node.nodeLock)
-                                {
-                                    node.element = item;
-                                    node.tag = Thread.CurrentThread.ManagedThreadId;
-
-                                    if (comparer.Compare(node.element, siblingMinNode.element) < 0)
-                                    {
-                                        heap[i].first = node;
-                                        heap[i].last = siblingMinNode;
-                                        bubbleupmax = false;
-                                    }
-                                    else
-                                    {
-                                        heap[i].last = node;
-                                        bubbleupmax = true;
-                                    }
-                                }//unlock node
-                            } //unlock sibling min node
-                        }//unlock interval node
+                                node.element = item;
+                                node.tag = Thread.CurrentThread.ManagedThreadId;
+                                heap[i].last = node;
+                            }//unlock node
+                        }//unlock interval 
                     }
                 }
+
             } //unlock heap
+
+            if (s != 0) //not the first element
+            {
+                if (s % 2 == 0)
+                {
+                    int p = (i + 1) / 2 - 1;
+                    lock (heap[p].last.nodeLock) //lock last interval node
+                    {
+                        lock (heap[i].first.nodeLock)
+                        {
+                            if (heap[p].last.tag == -2 && heap[i].first.tag == Thread.CurrentThread.ManagedThreadId)
+                            {
+                                if (comparer.Compare(heap[i].first.element, heap[p].last.element) > 0)  //new element is smaller than current min element.
+                                {
+                                    swapFirstWithLast(i, p);
+                                    i = p;
+                                    bubbleupmax = true;
+                                }
+                            }
+                            else if (heap[p].last.tag == -1)
+                            {
+                                return true;
+                            }
+                            else if (heap[i].first.tag != Thread.CurrentThread.ManagedThreadId)
+                            {
+                                bubbleupmax = false;
+                                i = p;
+                            }
+                        }//unlock node
+                    } //unlock parent max heap node
+                }
+                else
+                {
+
+                    lock (heap[i].first.nodeLock)
+                    {
+                        lock (heap[i].last.nodeLock) //lock last interval node
+                        {
+                            if (heap[i].first.tag == -2 && heap[i].last.tag == Thread.CurrentThread.ManagedThreadId)
+                            {
+                                if (comparer.Compare(heap[i].last.element, heap[i].first.element) < 0)
+                                {
+                                    swapFirstWithLast(i, i);
+                                    bubbleupmax = false;
+                                }
+                                else
+                                {
+                                    bubbleupmax = true;
+                                }
+                            }
+                            else if (heap[i].first.tag == -1)
+                            {
+                                return true;
+                            }
+                            else if (heap[i].last.tag != Thread.CurrentThread.ManagedThreadId)
+                            {
+                                bubbleupmax = false;
+                            }
+                        }//unlock node
+                    } //unlock sibling min node
+                }
+            }
 
             if (s == 0)
             {
@@ -334,38 +385,38 @@ namespace C5.concurrent.heaps
 
         private void updateFirst(int cell, T item, int tag)
         {
-            heap[cell].first.element = item;
-            heap[cell].first.tag = tag;
+            heap[cell].first = item;
+            heap[cell].firstTag = tag;
 
         }
 
         private void updateLast(int cell, T item, int tag)
         {
-            heap[cell].last.element = item;
-            heap[cell].last.tag = tag;
+            heap[cell].last = item;
+            heap[cell].lastTag = tag;
         }
 
         private void swapLastWithLast(int cell1, int cell2)
         {
-            T last = heap[cell2].last.element;
-            int lastTag = heap[cell2].last.tag;
-            updateLast(cell2, heap[cell1].last.element, heap[cell1].last.tag);
+            T last = heap[cell2].last;
+            int lastTag = heap[cell2].lastTag;
+            updateLast(cell2, heap[cell1].last, heap[cell1].lastTag);
             updateLast(cell1, last, lastTag);
         }
 
         private void swapFirstWithLast(int cell1, int cell2)
         {
-            T first = heap[cell1].first.element;
-            int firstTag = heap[cell1].first.tag;
-            updateFirst(cell1, heap[cell2].last.element, heap[cell2].last.tag);
+            T first = heap[cell1].first;
+            int firstTag = heap[cell1].firstTag;
+            updateFirst(cell1, heap[cell2].last, heap[cell2].lastTag);
             updateLast(cell2, first, firstTag);
         }
 
         private void swapFirstWithFirst(int cell1, int cell2)
         {
-            T first = heap[cell2].first.element;
-            int firstTag = heap[cell2].first.tag;
-            updateFirst(cell2, heap[cell1].first.element, heap[cell1].first.tag);
+            T first = heap[cell2].first;
+            int firstTag = heap[cell2].firstTag;
+            updateFirst(cell2, heap[cell1].first, heap[cell1].firstTag);
             updateFirst(cell1, first, firstTag);
         }
     }
