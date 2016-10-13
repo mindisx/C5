@@ -24,20 +24,42 @@ namespace C5.concurrent
             get { return -2; }
         }
 
-
         private int Empty
         {
             get { return -1; }
         }
 
-
         private static object globalLock = new object();
+        /// <summary>
+        /// Used for resizing. 
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns>A resized lock object list</returns>
+        private Array lockAll(Func<Array> action)
+        {
+            return lockAll(0, action);
+        }
+        private Array lockAll(int i, Func<Array> action)
+        {
+            if (i >= locks.Length)
+            {
+                return action();
+            }
+            else
+            {
+                lock (locks[i])
+                {
+                    return lockAll(i + 1, action);
+                }
+            }
+        }
 
         SCG.IComparer<T> comparer;
         SCG.IEqualityComparer<T> itemEquelityComparer;
         Interval[] heap;
         object[] locks;
         int size;
+
 
         public HuntLockDEPQ() : this(16) { }
 
@@ -77,195 +99,6 @@ namespace C5.concurrent
             if (add(item))
                 return true;
             return false;
-        }
-
-        /// <summary>
-        /// Returns a list of all elements not necessary in actual priority
-        /// </summary>
-        /// <returns></returns>
-        public SCG.IEnumerable<T> All()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    throw new NoSuchItemException();
-                return (T[])lockAll(() =>
-                {
-                    T[] elements = new T[size];
-                    int counter = 0;
-                    for (int i = 0; i < size; i++)
-                    {
-                        if (i % 2 == 0)
-                        {
-                            elements[counter] = heap[i / 2].first;
-                            counter++;
-                        }
-                        else
-                        {
-                            elements[counter] = heap[i / 2].last;
-                            counter++;
-                        }
-                    }
-                    return elements;
-                });
-            }
-        }
-
-        public bool Check()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    return true;
-
-                if (size == 1)
-                    return (object)(heap[0].first) != null;
-
-                return check(0, heap[0].first, heap[0].last);
-            }
-        }
-
-        public T DeleteMax()
-        {
-            throw new NotImplementedException();
-        }
-
-        public T DeleteMin()
-        {
-            throw new NotImplementedException();
-        }
-
-        public T FindMax()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    throw new NoSuchItemException();
-                return heap[0].last;
-            }
-        }
-
-        public T FindMin()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    throw new NoSuchItemException();
-                return heap[0].first;
-            }
-        }
-
-        public bool IsEmpty()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    return true;
-                return false;
-            }
-        }
-
-        private bool check(int i, T min, T max)
-        {
-            bool retval = true;
-            Interval interval = heap[i];
-            T first = interval.first, last = interval.last;
-            int firsttag = interval.firstTag, lasttag = interval.lastTag;
-
-            if (firsttag != Available || lasttag != Available)
-            {
-                return false;
-            }
-            if (2 * i + 1 == size)
-            {
-                if (comparer.Compare(min, first) > 0)
-                {
-                    retval = false;
-                }
-
-                if (comparer.Compare(first, max) > 0)
-                {
-                    retval = false;
-                }
-                return retval;
-            }
-            else
-            {
-                if (comparer.Compare(min, first) > 0)
-                {
-                    retval = false;
-                }
-
-                if (comparer.Compare(first, last) > 0)
-                {
-                    retval = false;
-                }
-
-                if (comparer.Compare(last, max) > 0)
-                {
-                    retval = false;
-                }
-
-                int l = 2 * i + 1, r = l + 1;
-
-                if (2 * l < size)
-                    retval = retval && check(l, first, last);
-
-                if (2 * r < size)
-                    retval = retval && check(r, first, last);
-            }
-
-            return retval;
-        }
-
-        private object[] resize()
-        {
-            return (object[])lockAll(() =>
-            {
-                Array newLocks = Array.CreateInstance(typeof(object), heap.Length * 2);
-                Interval[] newHeap = new Interval[heap.Length * 2];
-                for (int y = 0; y < newHeap.Length; y++)
-                {
-                    if (y < heap.Length)
-                    {
-                        newHeap[y] = heap[y];
-                    }
-                    else
-                    {
-                        Interval interval = new Interval();
-                        interval.firstTag = -2;
-                        interval.lastTag = -2;
-                        newHeap[y] = interval;
-                    }
-                    newLocks.SetValue(newHeap[y].intervalLock, y);
-                }
-                heap = newHeap;
-                return newLocks;
-            });
-        }
-
-        /// <summary>
-        /// Used for resizing. 
-        /// </summary>
-        /// <param name="action"></param>
-        /// <returns>A resized lock object list</returns>
-        private Array lockAll(Func<Array> action)
-        {
-            return lockAll(0, action);
-        }
-        private Array lockAll(int i, Func<Array> action)
-        {
-            if (i >= locks.Length)
-            {
-                return action();
-            }
-            else
-            {
-                lock (locks[i])
-                {
-                    return lockAll(i + 1, action);
-                }
-            }
         }
 
         private bool add(T item)
@@ -394,6 +227,258 @@ namespace C5.concurrent
             }
             return true;
         }
+
+        /// <summary>
+        /// Returns a list of all elements not necessary in actual priority
+        /// </summary>
+        /// <returns></returns>
+        public SCG.IEnumerable<T> All()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+                return (T[])lockAll(() =>
+                {
+                    T[] elements = new T[size];
+                    int counter = 0;
+                    for (int i = 0; i < size; i++)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            elements[counter] = heap[i / 2].first;
+                            counter++;
+                        }
+                        else
+                        {
+                            elements[counter] = heap[i / 2].last;
+                            counter++;
+                        }
+                    }
+                    return elements;
+                });
+            }
+        }
+
+        public bool Check()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    return true;
+
+                if (size == 1)
+                    return (object)(heap[0].first) != null;
+
+                return check(0, heap[0].first, heap[0].last);
+            }
+        }
+
+        private bool check(int i, T min, T max)
+        {
+            bool retval = true;
+            Interval interval = heap[i];
+            T first = interval.first, last = interval.last;
+            int firsttag = interval.firstTag, lasttag = interval.lastTag;
+
+            if (firsttag != Available || lasttag != Available)
+            {
+                return false;
+            }
+            if (2 * i + 1 == size)
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(first, max) > 0)
+                {
+                    retval = false;
+                }
+                return retval;
+            }
+            else
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(first, last) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(last, max) > 0)
+                {
+                    retval = false;
+                }
+
+                int l = 2 * i + 1, r = l + 1;
+
+                if (2 * l < size)
+                    retval = retval && check(l, first, last);
+
+                if (2 * r < size)
+                    retval = retval && check(r, first, last);
+            }
+
+            return retval;
+        }
+
+        public T DeleteMax()
+        {
+            throw new NotImplementedException();
+        }
+
+        public T DeleteMin()
+        {
+            int bottom;
+            int top = 0;
+            int localSize;
+            int i = 0;
+            var retval = default(T);
+
+            //Hunt: grab item from bottom to replace to-be-delated top item
+            lock (globalLock)
+            {
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+
+                size--;
+                localSize = size;
+                bottom = localSize / 2;
+            }
+
+            lock (heap[bottom].intervalLock)
+            {
+                //default return
+                retval = heap[bottom].first;
+                heap[bottom].firstTag = Empty;
+            }
+
+
+            lock (globalLock)
+            {
+                lock (heap[top].intervalLock)
+                {
+                    //Hunt: Lock first item stop if only iteam in the heap
+                    if (heap[top].firstTag == Empty)
+                    {
+                        return retval;
+                    }
+
+                    //replace the top item with the "bottom" or last element and mark it for deletion
+                    updateFirst(top, heap[bottom].first, heap[bottom].firstTag);
+                    heap[top].firstTag = Available;
+
+                    //check that the new top min element (first) isent greater then the top Max(last) element. (vice-versa for delete-max)
+                    T min = heap[top].first;
+                    int minTag = heap[top].firstTag;
+                    T max = heap[top].last;
+                    int maxTag = heap[top].lastTag;
+                    //check if new min is greater then max, and if it is, swap them
+                    if (comparer.Compare(min, max) > 0)
+                    {
+                        updateFirst(top, max, maxTag);
+                        updateLast(top, min, minTag);
+                    }
+                }
+            }
+
+
+
+            //heapify
+            // i == 0 aka first element in the heap
+            while (i < localSize / 2)
+            {
+                var left = heap[(i + 1) * 2]; var right = heap[(i + 1) * 2 + 1];
+
+                lock (left.intervalLock)
+                {
+                    lock (right.intervalLock)
+                    {
+                        if (left.firstTag.Equals(Empty))
+                        {
+                            break;
+                        }
+                        else if (right.firstTag.Equals(Empty))
+                        {
+
+                        }
+                    }
+                    var child = right;
+
+                }
+
+            }
+
+            return default(T);
+
+
+
+        }
+
+        public T FindMax()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+                return heap[0].last;
+            }
+        }
+
+        public T FindMin()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+                return heap[0].first;
+            }
+        }
+
+        public bool IsEmpty()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    return true;
+                return false;
+            }
+        }
+                
+
+        private object[] resize()
+        {
+            return (object[])lockAll(() =>
+            {
+                Array newLocks = Array.CreateInstance(typeof(object), heap.Length * 2);
+                Interval[] newHeap = new Interval[heap.Length * 2];
+                for (int y = 0; y < newHeap.Length; y++)
+                {
+                    if (y < heap.Length)
+                    {
+                        newHeap[y] = heap[y];
+                    }
+                    else
+                    {
+                        Interval interval = new Interval();
+                        interval.firstTag = -2;
+                        interval.lastTag = -2;
+                        newHeap[y] = interval;
+                    }
+                    newLocks.SetValue(newHeap[y].intervalLock, y);
+                }
+                heap = newHeap;
+                return newLocks;
+            });
+        }
+                  
 
         private void bubbleUpMax(int i)
         {
