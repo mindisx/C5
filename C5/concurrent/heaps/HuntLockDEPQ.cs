@@ -79,9 +79,36 @@ namespace C5.concurrent
             return false;
         }
 
+        /// <summary>
+        /// Returns a list of all elements not necessary in actual priority
+        /// </summary>
+        /// <returns></returns>
         public SCG.IEnumerable<T> All()
         {
-            throw new NotImplementedException();
+            lock (globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+                return (T[])lockAll(() =>
+                {
+                    T[] elements = new T[size];
+                    int counter = 0;
+                    for (int i = 0; i < size; i++)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            elements[counter] = heap[i / 2].first;
+                            counter++;
+                        }
+                        else
+                        {
+                            elements[counter] = heap[i / 2].last;
+                            counter++;
+                        }
+                    }
+                    return elements;
+                });
+            }
         }
 
         public bool Check()
@@ -193,9 +220,9 @@ namespace C5.concurrent
 
         private object[] resize()
         {
-            return lockAll(() =>
+            return (object[])lockAll(() =>
             {
-                object[] newLocks = new object[heap.Length * 2];
+                Array newLocks = Array.CreateInstance(typeof(object), heap.Length * 2);
                 Interval[] newHeap = new Interval[heap.Length * 2];
                 for (int y = 0; y < newHeap.Length; y++)
                 {
@@ -210,19 +237,23 @@ namespace C5.concurrent
                         interval.lastTag = -2;
                         newHeap[y] = interval;
                     }
-                    newLocks[y] = newHeap[y].intervalLock;
+                    newLocks.SetValue(newHeap[y].intervalLock, y);
                 }
                 heap = newHeap;
                 return newLocks;
             });
         }
 
-
-        private object[] lockAll(Func<object[]> action)
+        /// <summary>
+        /// Used for resizing. 
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns>A resized lock object list</returns>
+        private Array lockAll(Func<Array> action)
         {
             return lockAll(0, action);
         }
-        private object[] lockAll(int i, Func<object[]> action)
+        private Array lockAll(int i, Func<Array> action)
         {
             if (i >= locks.Length)
             {
