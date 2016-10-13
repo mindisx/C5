@@ -86,7 +86,16 @@ namespace C5.concurrent
 
         public bool Check()
         {
-            throw new NotImplementedException();
+            lock (globalLock)
+            {
+                if (size == 0)
+                    return true;
+
+                if (size == 1)
+                    return (object)(heap[0].first) != null;
+
+                return check(0, heap[0].first, heap[0].last);
+            }
         }
 
         public T DeleteMax()
@@ -127,6 +136,59 @@ namespace C5.concurrent
                     return true;
                 return false;
             }
+        }
+
+        private bool check(int i, T min, T max)
+        {
+            bool retval = true;
+            Interval interval = heap[i];
+            T first = interval.first, last = interval.last;
+            int firsttag = interval.firstTag, lasttag = interval.lastTag;
+
+            if (firsttag != Available || lasttag != Available)
+            {
+                return false;
+            }
+            if (2 * i + 1 == size)
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(first, max) > 0)
+                {
+                    retval = false;
+                }
+                return retval;
+            }
+            else
+            {
+                if (comparer.Compare(min, first) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(first, last) > 0)
+                {
+                    retval = false;
+                }
+
+                if (comparer.Compare(last, max) > 0)
+                {
+                    retval = false;
+                }
+
+                int l = 2 * i + 1, r = l + 1;
+
+                if (2 * l < size)
+                    retval = retval && check(l, first, last);
+
+                if (2 * r < size)
+                    retval = retval && check(r, first, last);
+            }
+
+            return retval;
         }
 
         private object[] resize()
@@ -189,7 +251,7 @@ namespace C5.concurrent
 
                 if (s == heap.Length * 2)
                 {
-                   locks =  resize();
+                    locks = resize();
                 }
                 if (s == 0)
                 {
@@ -211,24 +273,41 @@ namespace C5.concurrent
                             {
                                 heap[i].first = item;
                                 heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
-                                if (comparer.Compare(heap[i].first, heap[p].last) > 0)  //new element is smaller than current min element.
+                            }
+                        }
+
+                        while (true)
+                        {
+                            lock (heap[p].intervalLock)
+                            {
+                                lock (heap[i].intervalLock)
                                 {
-                                    swapFirstWithLast(i, p);
-                                    i = p;
-                                    bubbleupmax = true;
-                                }
-                                else
-                                {
-                                    if (comparer.Compare(heap[i].last, heap[p].first) < 0)  //parent's min element is smaller than new element. 
+                                    if (heap[p].lastTag == Available && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId)
                                     {
-                                        bubbleupmax = false;
+                                        if (comparer.Compare(heap[i].first, heap[p].last) > 0)  //new element is smaller than current min element.
+                                        {
+                                            swapFirstWithLast(i, p);
+                                            i = p;
+                                            bubbleupmax = true;
+                                        }
+                                        else
+                                        {
+                                            if (comparer.Compare(heap[i].last, heap[p].first) < 0)  //parent's min element is smaller than new element. 
+                                            {
+                                                bubbleupmax = false;
+                                            }
+                                            else
+                                            {
+                                                heap[i].firstTag = Available;
+                                                return true;
+                                            }
+                                        }
+                                        break;
                                     }
-                                    else
+                                    else if (heap[p].lastTag == Empty)
                                     {
-                                        heap[i].firstTag = Available;
                                         return true;
                                     }
-                                    
                                 }
                             }//unlock interval node
                         }
@@ -239,14 +318,29 @@ namespace C5.concurrent
                         {
                             heap[i].last = item;
                             heap[i].lastTag = Thread.CurrentThread.ManagedThreadId;
-                            if (comparer.Compare(heap[i].last, heap[i].first) < 0)
+                        }
+
+                        while (true)
+                        {
+                            lock (heap[i].intervalLock)
                             {
-                                swapFirstWithLast(i, i);
-                                bubbleupmax = false;
-                            }
-                            else
-                            {
-                                bubbleupmax = true;
+                                if (heap[i].firstTag == Available && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
+                                {
+                                    if (comparer.Compare(heap[i].last, heap[i].first) < 0)
+                                    {
+                                        swapFirstWithLast(i, i);
+                                        bubbleupmax = false;
+                                    }
+                                    else
+                                    {
+                                        bubbleupmax = true;
+                                    }
+                                    break;
+                                }
+                                else if (heap[i].firstTag == Empty)
+                                {
+                                    return true;
+                                }
                             }
                         }//unlock interval 
                     }
@@ -279,7 +373,7 @@ namespace C5.concurrent
                 {
                     lock (heap[i].intervalLock)
                     {
-                       p = (i + 1) / 2 - 1;
+                        p = (i + 1) / 2 - 1;
                         if (heap[p].lastTag == Available && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
                         {
                             if (comparer.Compare(heap[i].last, heap[p].last) > 0)
