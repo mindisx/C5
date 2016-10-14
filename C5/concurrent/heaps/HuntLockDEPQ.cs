@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq.Expressions;
 using SCG = System.Collections.Generic;
 using System.Threading;
 using System.Runtime.CompilerServices;
@@ -10,9 +9,9 @@ namespace C5.concurrent
     {
         private class Interval
         {
-            internal T first, last;
+            internal T first = default(T), last = default(T);
             internal object intervalLock = new object();
-            internal int firstTag, lastTag;
+            internal int firstTag = -1, lastTag = -1;
 
             public override string ToString()
             {
@@ -25,20 +24,20 @@ namespace C5.concurrent
             get { return -2; }
         }
 
+
         private int Empty
         {
             get { return -1; }
         }
 
-        private static object globalLock = new object();
 
+        private static object globalLock = new object();
 
         SCG.IComparer<T> comparer;
         SCG.IEqualityComparer<T> itemEquelityComparer;
         Interval[] heap;
         object[] locks;
         int size;
-
 
         public HuntLockDEPQ() : this(16) { }
 
@@ -52,15 +51,14 @@ namespace C5.concurrent
             locks = new object[lenght];
             for (int i = 0; i < lenght; i++)
             {
-                Interval interval = new Interval();
-                interval.firstTag = -2;
-                interval.lastTag = -2;
-                locks[i] = interval.intervalLock;
-                heap[i] = interval;
+                heap[i] = new Interval();
+                locks[i] = heap[i].intervalLock;
             }
         }
 
-
+        /// <summary>
+        /// Get the number of elements in the heap
+        /// </summary>
         public int Count
         {
             get
@@ -70,9 +68,13 @@ namespace C5.concurrent
                     return size;
                 }
             }
-
         }
 
+        /// <summary>
+        /// Add new item to the heap
+        /// </summary>
+        /// <param name="item">Item to add to the heap</param>
+        /// <returns>boolean</returns>
         public bool Add(T item)
         {
             if (add(item))
@@ -80,143 +82,17 @@ namespace C5.concurrent
             return false;
         }
 
-        private bool add(T item)
-        {
-            int s = 0;
-            bool bubbleupmax = false;
-            int i = 0;
-            /* add new node to an end of the heap */
-            lock (globalLock)//lock heap
-            {
-                s = size; // get size
-                size++; //increment size
-                i = s / 2;
-
-                if (s == heap.Length * 2)
-                {
-                    locks = resize();
-                }
-                if (s == 0)
-                {
-                    lock (heap[0].intervalLock)//lock last interval node
-                    {
-                        heap[0].first = item;
-                        heap[0].firstTag = Thread.CurrentThread.ManagedThreadId;
-                    }//unlock interval node
-                }
-
-                if (s != 0)
-                {
-                    if (s % 2 == 0)
-                    {
-                        int p = (i + 1) / 2 - 1;
-                        lock (heap[p].intervalLock)
-                        {
-                            lock (heap[i].intervalLock)//lock last interval node
-                            {
-                                heap[i].first = item;
-                                heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
-                            }
-                        }
-
-                        while (true)
-                        {
-                            lock (heap[p].intervalLock)
-                            {
-                                lock (heap[i].intervalLock)
-                                {
-                                    if (heap[p].lastTag == Available && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId)
-                                    {
-                                        if (comparer.Compare(heap[i].first, heap[p].last) > 0)  //new element is smaller than current min element.
-                                        {
-                                            swapFirstWithLast(i, p);
-                                            i = p;
-                                            bubbleupmax = true;
-                                        }
-                                        else
-                                        {
-                                            if (comparer.Compare(heap[i].last, heap[p].first) < 0)  //parent's min element is smaller than new element. 
-                                            {
-                                                bubbleupmax = false;
-                                            }
-                                            else
-                                            {
-                                                heap[i].firstTag = Available;
-                                                return true;
-                                            }
-                                        }
-                                        break;
-                                    }
-                                    else if (heap[p].lastTag == Empty)
-                                    {
-                                        return true;
-                                    }
-                                }
-                            }//unlock interval node
-                        }
-                    }
-                    else
-                    {
-                        lock (heap[i].intervalLock)//lock last interval node
-                        {
-                            heap[i].last = item;
-                            heap[i].lastTag = Thread.CurrentThread.ManagedThreadId;
-                        }
-
-                        while (true)
-                        {
-                            lock (heap[i].intervalLock)
-                            {
-                                if (heap[i].firstTag == Available && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
-                                {
-                                    if (comparer.Compare(heap[i].last, heap[i].first) < 0)
-                                    {
-                                        swapFirstWithLast(i, i);
-                                        bubbleupmax = false;
-                                    }
-                                    else
-                                    {
-                                        bubbleupmax = true;
-                                    }
-                                    break;
-                                }
-                                else if (heap[i].firstTag == Empty)
-                                {
-                                    return true;
-                                }
-                            }
-                        }//unlock interval 
-                    }
-                }
-            } //unlock heap
-
-            if (s == 0)
-            {
-                bubbleUpMin(i);
-                return true;
-            }
-
-            if (bubbleupmax)
-            {
-                bubbleUpMax(i);
-            }
-            else
-            {
-                bubbleUpMin(i);
-            }
-            return true;
-        }
-
         /// <summary>
         /// Returns a list of all elements not necessary in actual priority
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Enumrable object of type T</returns>
         public SCG.IEnumerable<T> All()
         {
             lock (globalLock)
             {
                 if (size == 0)
                     throw new NoSuchItemException();
+
                 return (T[])lockAll(() =>
                 {
                     T[] elements = new T[size];
@@ -225,20 +101,26 @@ namespace C5.concurrent
                     {
                         if (i % 2 == 0)
                         {
-                            elements[counter] = heap[i / 2].first;
+                            elements[counter] = heap[i / 2].last;
                             counter++;
                         }
                         else
                         {
-                            elements[counter] = heap[i / 2].last;
+                            elements[counter] = heap[i / 2].first;
                             counter++;
                         }
                     }
                     return elements;
-                });
-            }
+                }); //unlock all inteval nodes and return an array of type T
+            } // unlock heap
         }
 
+        /// <summary>
+        /// Not thread safe. 
+        /// Check if the heap fulfills interval heap constraints.
+        /// Only blocks new inserts and new deletes. Does not block element reordering.
+        /// </summary>
+        /// <returns>boolean</returns>
         public bool Check()
         {
             lock (globalLock)
@@ -250,7 +132,141 @@ namespace C5.concurrent
                     return (object)(heap[0].first) != null;
 
                 return check(0, heap[0].first, heap[0].last);
-            }
+            } //unlock heap
+        }
+
+        public T DeleteMax()
+        {
+            throw new NotImplementedException();
+        }
+
+        public T DeleteMin()
+        {
+            int bottom;
+            int i = 0;
+            int localSize;
+            var retval = default(T);
+
+            //Hunt: grab item from bottom to replace to-be-delated top item
+            lock (globalLock)
+            {
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+                size--;
+                localSize = size;
+                bottom = (size / 2);
+
+                lock (heap[bottom].intervalLock)
+                {
+                    //default return, top would have the highest priority (e.g. lowest number), bottom would have the lowest. (Min-heap)
+
+                    retval = heap[bottom].first;
+                    heap[bottom].firstTag = Empty;
+                }
+
+                lock (heap[i].intervalLock)
+                {
+                    //Hunt: Lock first item stop if only item in the heap
+                    if (heap[i].firstTag == Empty)
+                    {
+                        return retval;
+                    }
+
+                    //replace the top item with the "bottom" or last element and mark it for deletion
+                    swapFirstWithFirst(i, bottom);
+                    heap[i].firstTag = Available;
+
+                    //check that the new top min element (first) isent greater then the top Max(last) element. (vice-versa for delete-max)
+                    //T min = heap[i].first;
+                    //int minTag = heap[i].firstTag;
+                    //T max = heap[i].last;
+                    //int maxTag = heap[i].lastTag;
+                    //check if new min is greater then max, and if it is, swap them
+                    if (comparer.Compare(heap[i].first, heap[i].last) > 0)
+                    {
+                        swapFirstWithLast(i, i);
+                        //updateFirst(i, max, maxTag);
+                        //updateLast(i, min, minTag);
+                    }
+                }
+                // HuntHeapify
+                // i == 0 aka first element in the heap
+                while (i < localSize / 2)
+                {
+                    var left = i * 2 + 1;
+                    var right = i * 2 + 2;
+                    int child;
+
+                    lock (heap[left].intervalLock)
+                    {
+                        lock (heap[right].intervalLock)
+                        {
+                            if (heap[left].firstTag.Equals(Empty))
+                            {
+                                break;
+                            }
+                            //else if (heap[right].firstTag.Equals(Empty) || comparer.Compare(heap[left].first, heap[right].first) < 0)
+                            //hunt uses the Empty tag to check for empty nodes, we cant quite do the same as we dont actually have a node.
+
+                            else if (left * 2 < localSize && comparer.Compare(heap[left].first, heap[i].first) < 0)
+                            {
+                                child = left;
+                            }
+                            else
+                            {
+                                child = right;
+                            }
+
+                            //if child has higer priority (lower) then parent then swap, if not then stop
+                            if (comparer.Compare(heap[child].first, heap[i].first) < 0)
+                            {
+                                swapFirstWithFirst(child, i);
+                                i = child;
+
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+
+                    }
+                }//end huntHeapify
+            }//unlock i
+
+            return retval;
+        }
+
+        public T FindMax()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+                return heap[0].last;
+            } //unlock heap
+        }
+
+        public T FindMin()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    throw new NoSuchItemException();
+                return heap[0].first;
+            } //unlock heap
+        }
+
+        public bool IsEmpty()
+        {
+            lock (globalLock)
+            {
+                if (size == 0)
+                    return true;
+                return false;
+            } //unlock heap
         }
 
         private bool check(int i, T min, T max)
@@ -260,9 +276,9 @@ namespace C5.concurrent
             T first = interval.first, last = interval.last;
             int firsttag = interval.firstTag, lasttag = interval.lastTag;
 
-            if (firsttag != Available || lasttag != Available)
+            if (firsttag != Available || lasttag != Available) //check if the tags of the given node are marked Available. 
             {
-                return false;
+                return false; //some tags are not marked Available.
             }
             if (2 * i + 1 == size)
             {
@@ -306,232 +322,197 @@ namespace C5.concurrent
             return retval;
         }
 
-        public T DeleteMax()
-        {
-            throw new NotImplementedException();
-        }
-
-        public T DeleteMin()
-        {
-            int bottom;
-            int i = 0;
-            int localSize;
-            var retval = default(T);
-
-            //Hunt: grab item from bottom to replace to-be-delated top item
-            lock (globalLock)
-            {
-                if (size == 0)
-                {
-                    throw new NoSuchItemException();
-                }
-
-                size--;
-                localSize = size;
-                bottom = localSize / 2;
-            }
-
-            lock (heap[bottom].intervalLock)
-            {
-                //default return
-                retval = heap[bottom].first;
-                heap[bottom].firstTag = Empty;
-            }
-
-
-            lock (globalLock)
-            {
-                lock (heap[i].intervalLock)
-                {
-                    //Hunt: Lock first item stop if only iteam in the heap
-                    if (heap[i].firstTag == Empty)
-                    {
-                        return retval;
-                    }
-
-                    //replace the top item with the "bottom" or last element and mark it for deletion
-                    updateFirst(i, heap[bottom].first, heap[bottom].firstTag);
-                    heap[i].firstTag = Available;
-
-                    //check that the new top min element (first) isent greater then the top Max(last) element. (vice-versa for delete-max)
-                    //T min = heap[i].first;
-                    //int minTag = heap[i].firstTag;
-                    //T max = heap[i].last;
-                    //int maxTag = heap[i].lastTag;
-                    //check if new min is greater then max, and if it is, swap them
-                    if (comparer.Compare(heap[i].first, heap[i].last) > 0)
-                    {
-                        swapFirstWithLast(i, i);
-                        //updateFirst(i, max, maxTag);
-                        //updateLast(i, min, minTag);
-                    }
-                   // HuntHeapify
-                    // i == 0 aka first element in the heap
-                    while (i < localSize / 2)
-                            {
-                                var left = i * 2 + 1;
-                                var right = i * 2 + 2;
-                                int child;
-
-                                lock (heap[left].intervalLock)
-                                {
-                                    lock (heap[right].intervalLock)
-                                    {
-                                        if (heap[left].firstTag.Equals(Empty))
-                                        {
-                                            break;
-                                        }
-                                        else if (heap[right].firstTag.Equals(Empty) || comparer.Compare(heap[left].first, heap[right].first) > 0)
-                                        {
-                                            child = left;
-                                        }
-                                        else
-                                        {
-                                            child = right;
-                                        }
-                                    
-                                        //if child has higer priority then parent then swap, if not then stop
-                                        if (comparer.Compare(heap[child].first, heap[i].first) > 0)
-                                        {
-                                            swapFirstWithFirst(child, i);
-                                            i = child;
-                                        }
-                                        else
-                                        {
-                                            break;
-                                        }
-                                    }
-
-                                }
-                            }//end huntHeapify
-                    }//unlock i
-
-            }//unlock global
-
-            return retval;
-
-
-
-        }
-
-        public T FindMax()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    throw new NoSuchItemException();
-                return heap[0].last;
-            }
-        }
-
-        public T FindMin()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    throw new NoSuchItemException();
-                return heap[0].first;
-            }
-        }
-
-        public bool IsEmpty()
-        {
-            lock (globalLock)
-            {
-                if (size == 0)
-                    return true;
-                return false;
-            }
-        }
-
-
-        private bool heapifyMin(int cell)
-        {
-            bool swappedroot = false;
-            lock (heap[cell].intervalLock)
-            {
-
-
-                if (2 * cell + 1 < size && comparer.Compare(heap[cell].first, heap[cell].last) > 0) //if given cell has both elements and if the first element is greather than max
-                {
-                    swappedroot = true;
-                    swapFirstWithLast(cell, cell);
-                }
-
-                int currentMin = cell;
-                int l = cell * 2 + 1;
-                int r = l + 1;
-
-                if (2 * l < size && comparer.Compare(heap[l].first, heap[currentMin].first) < 0) //left child has min element and if it is a smaller than current min 
-                    currentMin = l;
-                if (2 * r < size && comparer.Compare(heap[r].first, heap[currentMin].first) < 0) //right child has min element and if it is a smaller than current min
-                    currentMin = r;
-
-                if (currentMin != cell) //if we found a smaller element among child nodes
-                {
-                    swapFirstWithFirst(currentMin, cell); //swap min element with parent and one of the child
-                    heapifyMin(currentMin);
-                }
-            }
-            return swappedroot;
-        }
-
-        #region helpers
         /// <summary>
-        /// Used for resizing. 
+        /// Increases heap size twice.
         /// </summary>
-        /// <param name="action"></param>
-        /// <returns>A resized lock object list</returns>
+        /// <returns>an array of interval node locks</returns>
+        private object[] resize()
+        {
+            return (object[])lockAll(() =>
+            {
+                Array newLocks = Array.CreateInstance(typeof(object), heap.Length * 2); //create new array of locks
+                Interval[] newHeap = new Interval[heap.Length * 2]; //create new heap
+                for (int y = 0; y < newHeap.Length; y++)
+                {
+                    if (y < heap.Length)
+                    {
+                        newHeap[y] = heap[y]; //add existing intervals to new heap
+                    }
+                    else
+                    {
+                        newHeap[y] = new Interval(); //fill the rest of new heap with empty intervals
+                    }
+                    newLocks.SetValue(newHeap[y].intervalLock, y); //fill new 
+                }
+                heap = newHeap;
+                return newLocks;
+            }); //unlocks all nodes
+        }
+
+        /// <summary>
+        /// Locks all existing interval nodes 
+        /// </summary>
+        /// <param name="action">some function that returns Array object</param>
+        /// <returns>Array object</returns>
         private Array lockAll(Func<Array> action)
         {
             return lockAll(0, action);
         }
+
         private Array lockAll(int i, Func<Array> action)
         {
-            if (i >= locks.Length)
+            if (i >= locks.Length) //if all elements have been reached
             {
-                return action();
+                return action(); //run given function
             }
             else
             {
                 lock (locks[i])
                 {
-                    return lockAll(i + 1, action);
-                }
+                    return lockAll(i + 1, action); //recusevley lock all nodes and pass given function
+                }//unlock i'th node 
             }
         }
-        private object[] resize()
+
+        private bool add(T item)
         {
-            return (object[])lockAll(() =>
+            int s = 0;
+            bool bubbleupmax = false;
+            int i = 0;
+
+            lock (globalLock)//lock heap
             {
-                Array newLocks = Array.CreateInstance(typeof(object), heap.Length * 2);
-                Interval[] newHeap = new Interval[heap.Length * 2];
-                for (int y = 0; y < newHeap.Length; y++)
+                s = size; // get size
+                size++; //increment size
+                i = s / 2;
+
+                if (s == heap.Length * 2)
                 {
-                    if (y < heap.Length)
+                    locks = resize(); //resize array and assign new set of locks
+                }
+
+                if (s == 0)
+                {
+                    lock (heap[0].intervalLock) //lock first interval node
                     {
-                        newHeap[y] = heap[y];
+                        heap[0].first = item;
+                        heap[0].firstTag = Thread.CurrentThread.ManagedThreadId; //assign thread id to the element
+                    }//unlock interval node
+                }
+
+                if (s != 0) //if not the fist elment
+                {
+                    if (s % 2 == 0)
+                    {
+                        int p = (i + 1) / 2 - 1;
+                        lock (heap[p].intervalLock) //lock parent node
+                        {
+                            lock (heap[i].intervalLock) //lock last interval node and insert new item
+                            {
+                                heap[i].first = item;
+                                heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
+                            }
+                        } //unlock current node
+
+                        while (true) //run until new element will be added to min or max heap
+                        {
+                            lock (heap[p].intervalLock) //lock parent node
+                            {
+                                lock (heap[i].intervalLock) //lock last node
+                                {
+                                    if (heap[p].lastTag == Available && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId) //check if parent element is available and current elment is from current thread
+                                    {
+                                        if (comparer.Compare(heap[i].first, heap[p].last) > 0) //new element is larger than the parent's max element.
+                                        {
+                                            swapFirstWithLast(i, p); //swap elements and tags
+                                            i = p; // assign new current node
+                                            bubbleupmax = true; //new element belongs to max heap.
+                                            break; //exit while
+                                        }
+                                        else if (heap[p].firstTag == Available && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId)
+                                        {
+                                            if (comparer.Compare(heap[i].last, heap[p].first) < 0) //new element is smaller than the parent's min element
+                                            {
+                                                bubbleupmax = false; //new element belongs to min heap
+                                                break; //exit while
+                                            }
+                                            else //new element is larger than parent's min element
+                                            {
+                                                heap[i].firstTag = Available;
+                                                return true; //insert complete
+                                            }
+                                        }
+                                        else if (heap[p].firstTag == Empty) //parent node is empty
+                                        {
+                                            return true; //insert complete
+                                        }
+                                    }
+                                    else if (heap[p].lastTag == Empty) //parent node is empty 
+                                    {
+                                        return true; //insert complete
+                                    }
+                                } //unlock current node
+                            } // unlock parent node
+                        } //while loop
                     }
                     else
                     {
-                        Interval interval = new Interval();
-                        interval.firstTag = -2;
-                        interval.lastTag = -2;
-                        newHeap[y] = interval;
-                    }
-                    newLocks.SetValue(newHeap[y].intervalLock, y);
-                }
-                heap = newHeap;
-                return newLocks;
-            });
-        }
+                        lock (heap[i].intervalLock) //lock last interval node and insert new item
+                        {
+                            heap[i].last = item;
+                            heap[i].lastTag = Thread.CurrentThread.ManagedThreadId;
+                        } //unlock current node
 
+                        while (true) //run until new element will be added to min or max heap
+                        {
+                            lock (heap[i].intervalLock)
+                            {
+                                if (heap[i].firstTag == Available && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
+                                {
+                                    if (comparer.Compare(heap[i].last, heap[i].first) < 0) //new element is smaller than the current min element
+                                    {
+                                        swapFirstWithLast(i, i); //swap elements
+                                        bubbleupmax = false; //new element belongs to min heap
+                                        break; //exit while
+                                    }
+                                    else //new element is larger than the current min element
+                                    {
+                                        bubbleupmax = true; //new element belongs to max heap
+                                        break; //exit while
+                                    }
+                                }
+                                else if (heap[i].firstTag == Empty) //parent node is empty
+                                {
+                                    return true; //insert complete
+                                }
+                            } //unlock current node
+                        } //while loop
+                    }
+                }
+            } //unlock heap
+
+            if (s == 0) //new element is the first element in the heap
+            {
+                bubbleUpMin(i); //bubble up min heap. Since i = 0, it will only assing available.
+                return true;
+            }
+
+            if (bubbleupmax) //new element belongs to max heap
+            {
+                bubbleUpMax(i); //bubble up new element from node i in max heap
+            }
+            else //new element belongs to min heap
+            {
+                bubbleUpMin(i); //bubble up new element from node i in min heap
+            }
+            return true;
+        }
 
         private void bubbleUpMax(int i)
         {
-            while (i > 0)
+            while (i > 0) //while not root node
             {
-                int p = (i + 1) / 2 - 1;
+                int p = (i + 1) / 2 - 1; //get parent node index
                 lock (heap[p].intervalLock)
                 {
                     lock (heap[i].intervalLock)
@@ -546,28 +527,28 @@ namespace C5.concurrent
                             }
                             else
                             {
-                                heap[i].lastTag = Available; //available
-                                return;
+                                heap[i].lastTag = Available; //mark max element available
+                                return; //end bubble up
                             }
                         }
                         else if (heap[p].lastTag == Empty)
                         {
-                            return;
+                            return; //end bubble up
                         }
                         else if (heap[i].lastTag != Thread.CurrentThread.ManagedThreadId)
                         {
-                            i = p;
+                            i = p; //parent node becomes current node
                         }
                     }//unlock i
                 }//unlock p
             }
-            if (i == 0)
+            if (i == 0) //if i is root node
             {
                 lock (heap[i].intervalLock)
                 {
                     if (heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
                     {
-                        heap[i].lastTag = Available; //available
+                        heap[i].lastTag = Available; //mark max element available
                     }
                 }//unlock i
             }
@@ -592,13 +573,13 @@ namespace C5.concurrent
                             }
                             else
                             {
-                                heap[i].firstTag = Available; //available
-                                return;
+                                heap[i].firstTag = Available;  //mark max element available
+                                return; //end bubble up
                             }
                         }
                         else if (heap[p].firstTag == Empty)
                         {
-                            return;
+                            return; // end bubble up
                         }
                         else if (heap[i].firstTag != Thread.CurrentThread.ManagedThreadId)
                         {
@@ -614,7 +595,7 @@ namespace C5.concurrent
                 {
                     if (heap[i].firstTag == Thread.CurrentThread.ManagedThreadId)
                     {
-                        heap[i].firstTag = Available; //available
+                        heap[i].firstTag = Available; //mark max element available
                     }
                 }//unlock i
             }
@@ -657,6 +638,5 @@ namespace C5.concurrent
             updateFirst(cell2, heap[cell1].first, heap[cell1].firstTag);
             updateFirst(cell1, first, firstTag);
         }
-        #endregion
     }
 }
