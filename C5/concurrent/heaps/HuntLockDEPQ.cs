@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq.Expressions;
 using SCG = System.Collections.Generic;
 using System.Threading;
 using System.Runtime.CompilerServices;
@@ -30,29 +31,7 @@ namespace C5.concurrent
         }
 
         private static object globalLock = new object();
-        /// <summary>
-        /// Used for resizing. 
-        /// </summary>
-        /// <param name="action"></param>
-        /// <returns>A resized lock object list</returns>
-        private Array lockAll(Func<Array> action)
-        {
-            return lockAll(0, action);
-        }
-        private Array lockAll(int i, Func<Array> action)
-        {
-            if (i >= locks.Length)
-            {
-                return action();
-            }
-            else
-            {
-                lock (locks[i])
-                {
-                    return lockAll(i + 1, action);
-                }
-            }
-        }
+
 
         SCG.IComparer<T> comparer;
         SCG.IEqualityComparer<T> itemEquelityComparer;
@@ -335,9 +314,8 @@ namespace C5.concurrent
         public T DeleteMin()
         {
             int bottom;
-            int top = 0;
-            int localSize;
             int i = 0;
+            int localSize;
             var retval = default(T);
 
             //Hunt: grab item from bottom to replace to-be-delated top item
@@ -363,60 +341,74 @@ namespace C5.concurrent
 
             lock (globalLock)
             {
-                lock (heap[top].intervalLock)
+                lock (heap[i].intervalLock)
                 {
                     //Hunt: Lock first item stop if only iteam in the heap
-                    if (heap[top].firstTag == Empty)
+                    if (heap[i].firstTag == Empty)
                     {
                         return retval;
                     }
 
                     //replace the top item with the "bottom" or last element and mark it for deletion
-                    updateFirst(top, heap[bottom].first, heap[bottom].firstTag);
-                    heap[top].firstTag = Available;
+                    updateFirst(i, heap[bottom].first, heap[bottom].firstTag);
+                    heap[i].firstTag = Available;
 
                     //check that the new top min element (first) isent greater then the top Max(last) element. (vice-versa for delete-max)
-                    T min = heap[top].first;
-                    int minTag = heap[top].firstTag;
-                    T max = heap[top].last;
-                    int maxTag = heap[top].lastTag;
+                    //T min = heap[i].first;
+                    //int minTag = heap[i].firstTag;
+                    //T max = heap[i].last;
+                    //int maxTag = heap[i].lastTag;
                     //check if new min is greater then max, and if it is, swap them
-                    if (comparer.Compare(min, max) > 0)
+                    if (comparer.Compare(heap[i].first, heap[i].last) > 0)
                     {
-                        updateFirst(top, max, maxTag);
-                        updateLast(top, min, minTag);
+                        swapFirstWithLast(i, i);
+                        //updateFirst(i, max, maxTag);
+                        //updateLast(i, min, minTag);
                     }
-                }
-            }
+                   // HuntHeapify
+                    // i == 0 aka first element in the heap
+                    while (i < localSize / 2)
+                            {
+                                var left = i * 2 + 1;
+                                var right = i * 2 + 2;
+                                int child;
 
+                                lock (heap[left].intervalLock)
+                                {
+                                    lock (heap[right].intervalLock)
+                                    {
+                                        if (heap[left].firstTag.Equals(Empty))
+                                        {
+                                            break;
+                                        }
+                                        else if (heap[right].firstTag.Equals(Empty) || comparer.Compare(heap[left].first, heap[right].first) > 0)
+                                        {
+                                            child = left;
+                                        }
+                                        else
+                                        {
+                                            child = right;
+                                        }
+                                    
+                                        //if child has higer priority then parent then swap, if not then stop
+                                        if (comparer.Compare(heap[child].first, heap[i].first) > 0)
+                                        {
+                                            swapFirstWithFirst(child, i);
+                                            i = child;
+                                        }
+                                        else
+                                        {
+                                            break;
+                                        }
+                                    }
 
+                                }
+                            }//end huntHeapify
+                    }//unlock i
 
-            //heapify
-            // i == 0 aka first element in the heap
-            while (i < localSize / 2)
-            {
-                var left = heap[(i + 1) * 2]; var right = heap[(i + 1) * 2 + 1];
+            }//unlock global
 
-                lock (left.intervalLock)
-                {
-                    lock (right.intervalLock)
-                    {
-                        if (left.firstTag.Equals(Empty))
-                        {
-                            break;
-                        }
-                        else if (right.firstTag.Equals(Empty))
-                        {
-
-                        }
-                    }
-                    var child = right;
-
-                }
-
-            }
-
-            return default(T);
+            return retval;
 
 
 
@@ -451,8 +443,63 @@ namespace C5.concurrent
                 return false;
             }
         }
-                
 
+
+        private bool heapifyMin(int cell)
+        {
+            bool swappedroot = false;
+            lock (heap[cell].intervalLock)
+            {
+
+
+                if (2 * cell + 1 < size && comparer.Compare(heap[cell].first, heap[cell].last) > 0) //if given cell has both elements and if the first element is greather than max
+                {
+                    swappedroot = true;
+                    swapFirstWithLast(cell, cell);
+                }
+
+                int currentMin = cell;
+                int l = cell * 2 + 1;
+                int r = l + 1;
+
+                if (2 * l < size && comparer.Compare(heap[l].first, heap[currentMin].first) < 0) //left child has min element and if it is a smaller than current min 
+                    currentMin = l;
+                if (2 * r < size && comparer.Compare(heap[r].first, heap[currentMin].first) < 0) //right child has min element and if it is a smaller than current min
+                    currentMin = r;
+
+                if (currentMin != cell) //if we found a smaller element among child nodes
+                {
+                    swapFirstWithFirst(currentMin, cell); //swap min element with parent and one of the child
+                    heapifyMin(currentMin);
+                }
+            }
+            return swappedroot;
+        }
+
+        #region helpers
+        /// <summary>
+        /// Used for resizing. 
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns>A resized lock object list</returns>
+        private Array lockAll(Func<Array> action)
+        {
+            return lockAll(0, action);
+        }
+        private Array lockAll(int i, Func<Array> action)
+        {
+            if (i >= locks.Length)
+            {
+                return action();
+            }
+            else
+            {
+                lock (locks[i])
+                {
+                    return lockAll(i + 1, action);
+                }
+            }
+        }
         private object[] resize()
         {
             return (object[])lockAll(() =>
@@ -478,7 +525,7 @@ namespace C5.concurrent
                 return newLocks;
             });
         }
-                  
+
 
         private void bubbleUpMax(int i)
         {
@@ -610,5 +657,6 @@ namespace C5.concurrent
             updateFirst(cell2, heap[cell1].first, heap[cell1].firstTag);
             updateFirst(cell1, first, firstTag);
         }
+        #endregion
     }
 }
