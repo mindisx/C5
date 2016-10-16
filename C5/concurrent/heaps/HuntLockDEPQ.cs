@@ -137,9 +137,8 @@ namespace C5.concurrent
 
         public T DeleteMax()
         {
-            bool globalLockAcquired = false, firstIntervalLockAcquired = false,
-                iIntervalLockAcquired = false, lIntervalLockAcquired = false,
-                rIntervalLockAcquired = false, lastIntervalLockAcquired = false;
+            bool globalLockAcquired = false, iIntervalLockAcquired = false,
+                lIntervalLockAcquired = false, rIntervalLockAcquired = false;
             int i = 0;
 
             Monitor.Enter(globalLock, ref globalLockAcquired); //acquire global lock and mark it aquired.
@@ -167,7 +166,7 @@ namespace C5.concurrent
                     Monitor.Enter(heap[0].intervalLock, ref iIntervalLockAcquired); //acquire lock of first interval node and mark it aquired.
                     try
                     {
-                        firstIntervalLockAcquired = iIntervalLockAcquired;
+                        // firstIntervalLockAcquired = iIntervalLockAcquired;
                         lock (heap[lastcell].intervalLock)
                         {
                             retval = heap[0].last;
@@ -303,8 +302,6 @@ namespace C5.concurrent
                     }
                     finally
                     {
-                        if (lastIntervalLockAcquired)
-                            Monitor.Exit(heap[lastcell].intervalLock);
                         if (iIntervalLockAcquired)
                             Monitor.Exit(heap[i].intervalLock);
                     }
@@ -320,102 +317,155 @@ namespace C5.concurrent
 
         public T DeleteMin()
         {
-            throw new NotImplementedException();
-            //int bottom;
-            //int i = 0;
-            //int localSize;
-            //var retval = default(T);
+            bool globalLockAcquired = false, iIntervalLockAcquired = false, 
+                lIntervalLockAcquired = false, rIntervalLockAcquired = false;
+            int i = 0;
 
-            ////Hunt: grab item from bottom to replace to-be-delated top item
-            //lock (globalLock)
-            //{
-            //    if (size == 0)
-            //    {
-            //        throw new NoSuchItemException();
-            //    }
-            //    size--;
-            //    localSize = size;
-            //    bottom = (size / 2);
+            Monitor.Enter(globalLock, ref globalLockAcquired);
+            try
+            {
+                if(size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
 
-            //    lock (heap[bottom].intervalLock)
-            //    {
-            //        //default return, top would have the highest priority (e.g. lowest number), bottom would have the lowest. (Min-heap)
+                T retval;
+                if (size == 1) //if there is only one element in the heap, assign it as a return value.
+                {
+                    lock (heap[0].intervalLock) //lock 
+                    {
+                        size = 0;
+                        retval = heap[0].first;
+                        heap[0].first = default(T);
+                        heap[0].firstTag = Empty;
+                    }
+                }
+                else
+                {
+                    int lastcell = (size - 1) / 2;
+                    Monitor.Enter(heap[0].intervalLock, ref iIntervalLockAcquired); //acquire lock of first interval node and mark it aquired.
+                    try
+                    {
+                        lock (heap[lastcell].intervalLock)
+                        {
+                            retval = heap[0].first;
+                            if (size % 2 == 0)
+                            {
+                                heap[0].first = heap[lastcell].last;
+                                heap[lastcell].last = default(T);
+                                heap[lastcell].lastTag = Empty;
+                            }
+                            else
+                            {
+                                heap[0].first = heap[lastcell].first;
+                                heap[lastcell].first = default(T);
+                                heap[lastcell].firstTag = Empty;
+                            }
+                            size--;
+                        } 
 
-            //        retval = heap[bottom].first;
-            //        heap[bottom].firstTag = Empty;
-            //    }
+                        if (globalLockAcquired)
+                        {
+                            Monitor.Exit(globalLock); //release lock
+                            globalLockAcquired = false; //mark global lock free
+                        }
 
-            //    lock (heap[i].intervalLock)
-            //    {
-            //        //Hunt: Lock first item stop if only item in the heap
-            //        if (heap[i].firstTag == Empty)
-            //        {
-            //            return retval;
-            //        }
+                        #region Heapify Min
 
-            //        //replace the top item with the "bottom" or last element and mark it for deletion
-            //        swapFirstWithFirst(i, bottom);
-            //        heap[i].firstTag = Available;
+                        i = 0; //node index at which we satrt heapify max
+                        while (true)
+                        {
+                            if (heap[i].lastTag != Empty && comparer.Compare(heap[i].first, heap[i].last) > 0)
+                            {
+                                swapFirstWithLast(i, i);
+                            }
 
-            //        //check that the new top min element (first) isent greater then the top Max(last) element. (vice-versa for delete-max)
-            //        //T min = heap[i].first;
-            //        //int minTag = heap[i].firstTag;
-            //        //T max = heap[i].last;
-            //        //int maxTag = heap[i].lastTag;
-            //        //check if new min is greater then max, and if it is, swap them
-            //        if (comparer.Compare(heap[i].first, heap[i].last) > 0)
-            //        {
-            //            swapFirstWithLast(i, i);
-            //            //updateFirst(i, max, maxTag);
-            //            //updateLast(i, min, minTag);
-            //        }
-            //    }
-            //    // HuntHeapify
-            //    // i == 0 aka first element in the heap
-            //    while (i < localSize / 2)
-            //    {
-            //        var left = i * 2 + 1;
-            //        var right = i * 2 + 2;
-            //        int child;
+                            int currentMin = i;
+                            int l = 2 * i + 1;
+                            int r = l + 1;
+                            try //try to obtain a lock on left child if exist
+                            {
+                                Monitor.Enter(heap[l].intervalLock, ref lIntervalLockAcquired);
+                            }
 
-            //        lock (heap[left].intervalLock)
-            //        {
-            //            lock (heap[right].intervalLock)
-            //            {
-            //                if (heap[left].firstTag.Equals(Empty))
-            //                {
-            //                    break;
-            //                }
-            //                //else if (heap[right].firstTag.Equals(Empty) || comparer.Compare(heap[left].first, heap[right].first) < 0)
-            //                //hunt uses the Empty tag to check for empty nodes, we cant quite do the same as we dont actually have a node.
+                            catch (IndexOutOfRangeException e)
+                            {
+                                //ignore exception. If this is caught, it means we reached the end of heap
+                            }
 
-            //                else if (left * 2 < localSize && comparer.Compare(heap[left].first, heap[i].first) < 0)
-            //                {
-            //                    child = left;
-            //                }
-            //                else
-            //                {
-            //                    child = right;
-            //                }
+                            try //try to obtain a lock on righ child if exist
+                            {
+                                Monitor.Enter(heap[r].intervalLock, ref rIntervalLockAcquired);
+                            }
+                            catch (IndexOutOfRangeException e)
+                            {
+                                //ignore exception. If this is caught, it means we reached the end of heap
+                            }
+                            try
+                            {
+                                if (lIntervalLockAcquired && heap[l].firstTag != Empty)  //if lock was aquired and left child has min element
+                                {
+                                    if (comparer.Compare(heap[l].first, heap[currentMin].first) < 0) //if left child's min node is less
+                                        currentMin = l; //left child becomes min node
+                                }
 
-            //                //if child has higer priority (lower) then parent then swap, if not then stop
-            //                if (comparer.Compare(heap[child].first, heap[i].first) < 0)
-            //                {
-            //                    swapFirstWithFirst(child, i);
-            //                    i = child;
+                                if (rIntervalLockAcquired && heap[r].firstTag != Empty) //if lock was aquired and right child has min element
+                                {
+                                    if (comparer.Compare(heap[r].first, heap[currentMin].first) < 0) //if right child's min node is less
+                                        currentMin = r;  //right child becomes min node
+                                }
 
-            //                }
-            //                else
-            //                {
-            //                    break;
-            //                }
-            //            }
+                                if (currentMin != i) // if min node is not the parent node...
+                                {
+                                    swapFirstWithFirst(currentMin, i);
+                                   
+                                    if (currentMin == l) //if left child is the node that has min value 
+                                    {
+                                        if (rIntervalLockAcquired)
+                                            Monitor.Exit(heap[r].intervalLock); //unlock right child
+                                    }
+                                    else if (currentMin == r) //if right child is the node that has min value 
+                                    {
+                                        if (lIntervalLockAcquired)
+                                            Monitor.Exit(heap[l].intervalLock); //unlock left child
+                                    }
 
-            //        }
-            //    }//end huntHeapify
-            //}//unlock i
+                                    if (iIntervalLockAcquired)
+                                    {
+                                        Monitor.Exit(heap[i].intervalLock); //release parent node lock, aka i'th node
+                                    }
+                                    i = currentMin; //new parent becomes either right or left child.
+                                    iIntervalLockAcquired = true; //since one of the child becomes parent, it is still locked
+                                    lIntervalLockAcquired = false; //reset lock flag
+                                    rIntervalLockAcquired = false; //reset lock flag
+                                    continue; //continue with the while loop
+                                }
+                                break; //exit while loop
+                            }
+                            finally
+                            {
+                                if (lIntervalLockAcquired)
+                                    Monitor.Exit(heap[l].intervalLock);
+                                if (rIntervalLockAcquired)
+                                    Monitor.Exit(heap[r].intervalLock);
+                            }
+                        } //end while
 
-            //return retval;
+                        #endregion
+                    }
+                    finally
+                    {
+                        if (iIntervalLockAcquired)
+                            Monitor.Exit(heap[i].intervalLock);
+                    }
+                }
+                return retval;
+            }
+            finally
+            {
+                if (globalLockAcquired)
+                    Monitor.Exit(globalLock);
+            }
         }
 
         public T FindMax()
