@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace C5.concurrent
 {
-    class HuntLockDEPQ<T> : IConcurrentPriorityQueue<T>
+    public class HuntLockDEPQ<T> : IConcurrentPriorityQueue<T>
     {
         private class Interval
         {
@@ -317,14 +317,14 @@ namespace C5.concurrent
 
         public T DeleteMin()
         {
-            bool globalLockAcquired = false, iIntervalLockAcquired = false, 
+            bool globalLockAcquired = false, iIntervalLockAcquired = false,
                 lIntervalLockAcquired = false, rIntervalLockAcquired = false;
             int i = 0;
 
             Monitor.Enter(globalLock, ref globalLockAcquired);
             try
             {
-                if(size == 0)
+                if (size == 0)
                 {
                     throw new NoSuchItemException();
                 }
@@ -362,7 +362,7 @@ namespace C5.concurrent
                                 heap[lastcell].firstTag = Empty;
                             }
                             size--;
-                        } 
+                        }
 
                         if (globalLockAcquired)
                         {
@@ -418,7 +418,7 @@ namespace C5.concurrent
                                 if (currentMin != i) // if min node is not the parent node...
                                 {
                                     swapFirstWithFirst(currentMin, i);
-                                   
+
                                     if (currentMin == l) //if left child is the node that has min value 
                                     {
                                         if (rIntervalLockAcquired)
@@ -585,7 +585,24 @@ namespace C5.concurrent
         /// <returns>Array object</returns>
         private Array lockAll(Func<Array> action)
         {
-            return lockAll(0, action);
+            int s = locks.Length;
+            for (int i = 0; i < s; i++)
+            {
+                Monitor.Enter(locks[i]);
+            }
+            try
+            {
+                return action();
+            }
+            finally
+            {
+                for (int i = 0; i < s; i++)
+                {
+                    Monitor.Exit(locks[i]);
+                }
+            }
+
+            //return lockAll(0, action);
         }
 
         private Array lockAll(int i, Func<Array> action)
