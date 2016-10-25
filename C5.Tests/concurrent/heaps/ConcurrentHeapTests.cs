@@ -38,7 +38,7 @@ namespace C5UnitTests.concurrent
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new GlobalLockDEPQ<int>(); }
+        public void Init() { queue = new HuntLockDEPQ<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
@@ -95,44 +95,58 @@ namespace C5UnitTests.concurrent
         public void AddTest()
         {
             queue.Add(20);
-            Assert.IsTrue(queue.Check());
             queue.Add(1);
-            Assert.IsTrue(queue.Check());
             queue.Add(19);
-            Assert.IsTrue(queue.Check());
             queue.Add(100);
-            Assert.IsTrue(queue.Check());
             queue.Add(0);
-            Assert.IsTrue(queue.Check());
-            Assert.AreEqual(5, queue.Count);
+            queue.Add(31);
+            queue.Add(27);
+            queue.Add(0);
+            queue.Add(16);
+            Assert.AreEqual(9, queue.Count);
         }
 
         [Test]
         public void RemoveMaxTest()
         {
             queue.Add(20);
-            Assert.IsTrue(queue.Check());
             queue.Add(1);
-            Assert.IsTrue(queue.Check());
             queue.Add(19);
-            Assert.IsTrue(queue.Check());
+            queue.Add(31);
+            queue.Add(27);
+            queue.Add(0);
+            queue.Add(16);
+            Assert.AreEqual(31, queue.DeleteMax());
+            Assert.AreEqual(27, queue.DeleteMax());
             Assert.AreEqual(20, queue.DeleteMax());
-            Assert.AreEqual(19, queue.DeleteMax());
-            Assert.AreEqual(1, queue.DeleteMax());
         }
 
         [Test]
         public void RemoveMinTest()
         {
             queue.Add(20);
-            Assert.IsTrue(queue.Check());
             queue.Add(1);
-            Assert.IsTrue(queue.Check());
             queue.Add(19);
-            Assert.IsTrue(queue.Check());
+            queue.Add(31);
+            queue.Add(27);
+            queue.Add(0);
+            queue.Add(16);
+            Assert.AreEqual(0, queue.DeleteMin());
             Assert.AreEqual(1, queue.DeleteMin());
-            Assert.AreEqual(19, queue.DeleteMin());
-            Assert.AreEqual(20, queue.DeleteMin());
+            Assert.AreEqual(16, queue.DeleteMin());
+        }
+
+        [Test]
+        public void MillionInserts()
+        {
+            Random rng = new Random();
+            for(int i = 0; i < 1000000; i++)
+            {
+                int ran = rng.Next(100000);
+                queue.Add(ran);
+            }
+            Assert.AreEqual(1000000, queue.Count);
+            queue.All();
         }
 
         [Test]
@@ -150,7 +164,6 @@ namespace C5UnitTests.concurrent
             foreach (int e in elements)
             {
                 int pos = Array.IndexOf(testElements, e);
-
                 Assert.IsTrue(pos > -1);
             }
         }
@@ -178,9 +191,9 @@ namespace C5UnitTests.concurrent
 
         public void Init()
         {
-            queue = new GlobalLockDEPQ<int>();
+            queue = new HuntLockDEPQ<int>();
             threadCount = Environment.ProcessorCount + 2;
-            n = 2;
+            n = 20;
         }
 
         [TearDown]
@@ -365,8 +378,8 @@ namespace C5UnitTests.concurrent
         }
 
 
-        //[Test]
-        //[Repeat(10)]
+        [Test]
+        [Repeat(10)]
         public void AddTest()
         {
             Random rng = new Random();
@@ -414,8 +427,8 @@ namespace C5UnitTests.concurrent
             }
         }
 
-        //[Test]
-        //[Repeat(10)]
+        [Test]
+        [Repeat(10)]
         public void AllTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.All());
@@ -458,8 +471,8 @@ namespace C5UnitTests.concurrent
             }
         }
 
-        //[Test]
-        //[Repeat(10)]
+        [Test]
+        [Repeat(10)]
         public void DeleteMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
@@ -491,14 +504,27 @@ namespace C5UnitTests.concurrent
                 }
             });
 
-            Assert.IsTrue(queue.Check());
             Assert.AreEqual(list.Count, queue.Count);
-
             list.Sort();
-            for (int i = 0; i < list.Count; i++)
+
+
+            ConcurrentQueue<int> bag = new ConcurrentQueue<int>();
+            Parallel.ForEach(partitions, (partition) =>
             {
-                Assert.AreEqual(list[i], queue.DeleteMin());
-            }
+                for (int i = 0; i < partition.Length; i++)
+                {
+                    bag.Enqueue(queue.DeleteMin());
+                }
+            });
+
+            Assert.AreEqual(list.Count, bag.Count);
+            //int[] all = queue.All().OrderBy(i => i).ToArray();
+            //for (int i = 0; i < list.Count; i++)
+            //{
+            //    int last = list[i];
+            //    int min = queue.DeleteMin();
+            //    Assert.AreEqual(last, min);
+            //}
 
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
@@ -538,29 +564,41 @@ namespace C5UnitTests.concurrent
                     queue.Add(partition[i]);
                 }
             });
-
-            Assert.IsTrue(queue.Check());
             Assert.AreEqual(list.Count, queue.Count);
 
-            list = list.OrderByDescending(i => i).ToList();
-            for (int i = 0; i < list.Count; i++)
+            ConcurrentQueue<int> bag = new ConcurrentQueue<int>();
+            Parallel.ForEach(partitions, (partition) =>
             {
-                Assert.AreEqual(list[i], queue.FindMax());
-            }
+                for (int i = 0; i < partition.Length; i++)
+                {
+                    bag.Enqueue(queue.DeleteMax());
+                }
+            });
 
+            Assert.AreEqual(list.Count, bag.Count);
+
+            //Assert.IsTrue(queue.Check());
+
+            //list = list.OrderByDescending(i => i).ToList();
+            //int[] all = queue.All().OrderByDescending(i => i).ToArray();
+            //for (int i = 0; i < list.Count; i++)
+            //{
+            //    int last = list[i];
+            //    int max = queue.DeleteMax();
+            //    Assert.AreEqual(last, max);
+            //}
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
         }
 
-
         [Test]
-        [Repeat(10)]
+       // [Repeat(10)]
         public void ConcurrentTest()
         {
-            int insertPercent = 35;
-            int deleteMinPercent = 20;
-            int deleteMaxPercent = 20;
-            int allPercent = 15;
+            int insertPercent = 45;
+            int deleteMinPercent = 25;
+            //int deleteMaxPercent = 25;
+            int allPercent = 0;
             int[] threads = new int[threadCount];
             for (int i = 0; i < threads.Length; i++)
                 threads[i] = i;
@@ -570,14 +608,15 @@ namespace C5UnitTests.concurrent
             {
                 List<int> insertbag = new List<int>();
                 List<int> deletebag = new List<int>();
-                int iterations = 1000;
-                while (iterations != 0)
+                int iterations = 10;
+                Random prng = new Random();
+                Random rng = new Random();
+                while (iterations >= 0)
                 {
-                    Random rng = new Random();
-                    int percent = rng.Next(0, 100);
+                    int percent = prng.Next(0, 100);
                     if (percent >= 100 - insertPercent)
                     {
-                        int element = rng.Next(100);
+                        int element = rng.Next(10000);
                         insertbag.Add(element);
                         queue.Add(element);
                     }
@@ -591,52 +630,52 @@ namespace C5UnitTests.concurrent
                                 deletebag.Add(element);
                             }
                         }
-                        catch (NoSuchItemException e)
+                        catch (Exception e)
                         {
                             //ignore
                         }
                     }
-                    else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent)
-                    {
-                        try
-                        {
-                            if (!queue.IsEmpty())
-                            {
-                                int element = queue.DeleteMax();
-                                deletebag.Add(element);
-                            }
-                        }
-                        catch (NoSuchItemException e)
-                        {
-                            //ignore
-                        }
-                    }
-                    else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent - allPercent)
-                    {
-                        try
-                        {
-                            int[] testlist = (int[])queue.All();
-                        }
-                        catch (NoSuchItemException e)
-                        {
-                            //ignore
-                        }
-                    }
-                    else
-                    {
-                        try
-                        {
-                            if (!queue.IsEmpty())
-                            {
-                                int maxelement = queue.FindMax();
-                                int minelement = queue.FindMin();
-                            }
-                        }
-                        catch (NoSuchItemException e)
-                        {
-                            //ignore
-                        }
-                    }
+                    //else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent)
+                    //{
+                    //    try
+                    //    {
+                    //        if (!queue.IsEmpty())
+                    //        {
+                    //            int element = queue.DeleteMax();
+                    //            deletebag.Add(element);
+                    //        }
+                    //    }
+                    //    catch (NoSuchItemException e)
+                    //    {
+                    //        //ignore
+                    //    }
+                    //}
+                    //else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent - allPercent)
+                    //{
+                    //    try
+                    //    {
+                    //        int[] testlist = (int[])queue.All();
+                    //    }
+                    //    catch (NoSuchItemException e)
+                    //    {
+                    //        //ignore
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    try
+                    //    {
+                    //        if (!queue.IsEmpty())
+                    //        {
+                    //            int maxelement = queue.FindMax();
+                    //            int minelement = queue.FindMin();
+                    //        }
+                    //    }
+                    //    catch (NoSuchItemException e)
+                    //    {
+                    //        //ignore
+                    //    }
+                    //}
                     iterations--;
                 }
 
@@ -647,8 +686,10 @@ namespace C5UnitTests.concurrent
                     cdeleteBag.Add(i);
 
             });
-
-            Assert.AreEqual(cinsertBag.Count, cdeleteBag.Count + queue.Count);
+            //Assert.IsTrue(queue.Check());
+            List<int> cl =  cinsertBag.OrderByDescending(i => i).ToList();
+            List<int> dl = cdeleteBag.OrderByDescending(i => i).ToList();
+            Assert.AreEqual(cl.Count, dl.Count + queue.Count);
         }
     }
     #endregion
