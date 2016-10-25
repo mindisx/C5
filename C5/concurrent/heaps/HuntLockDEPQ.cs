@@ -596,7 +596,7 @@ namespace C5.concurrent
             }
             finally
             {
-                for (int i = 0; i < s; i++)
+                for (int i = s-1; i >= 0; i--)
                 {
                     Monitor.Exit(locks[i]);
                 }
