@@ -1,6 +1,7 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.IO;
@@ -21,15 +22,18 @@ namespace Benchmark
         private static Int64 maxThroughput;
         private static BenchmarkConfig config = new BenchmarkConfig();
         private static string timestamp;
+        private static string dir = "output";
 
         public static void Main(String[] args)
         {
+            
+            Directory.CreateDirectory(dir); //create outut folder
             Console.WriteLine(SystemInfo()); // Print system info
 
             // Create a config object and set the values
             // TEST RUN
             config.WarmupRuns = 2;
-            config.Threads = new int[] { 1, 2, 4, 6, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30 };
+            config.Threads = new int[] { 1, 2, 3, 4, 5, 6, 7, 8 };
             config.NumberOfElements = new int[] { 10000, 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
@@ -38,7 +42,7 @@ namespace Benchmark
             config.PercentageDelete = new int[] { 0, 10, 15 };
             config.Prefill = true;
 
-            // CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
+             //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
             config.WarmupRuns = 4;
             //config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
             //config.Threads = new int[] { 1, 2 };
@@ -83,11 +87,10 @@ namespace Benchmark
                 standardList.Add(element);
                 customList.Add(element);
             }
-
+            #region custom
             customDictionary = new GlobalLockDEPQ<string>();
-
+            
             timer.Reset();
-
             timer.Start();
             foreach (string element in customList)
             {
@@ -95,21 +98,23 @@ namespace Benchmark
             }
             timer.Stop();
             Console.WriteLine("Custom time Add:   " + timer.ElapsedTicks);
+            
 
             timer.Reset();
-
             timer.Start();
+
             foreach (string element in customList)
             {
                 customDictionary.DeleteMax();
             }
             timer.Stop();
             Console.WriteLine("Custom time Get:   " + timer.ElapsedTicks);
+            #endregion
 
+            #region standard
             standardDictionary = new GlobalLockDEPQ<string>();
 
             timer.Reset();
-
             timer.Start();
             foreach (string element in standardList)
             {
@@ -128,9 +133,15 @@ namespace Benchmark
             timer.Stop();
             Console.WriteLine("Standard time Get: " + timer.ElapsedTicks);
 
+            #endregion
+
+
 
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         static void RunBenchmark()
         {
             DateTime now = DateTime.Now;
@@ -149,11 +160,11 @@ namespace Benchmark
 
                     string datafileName = timestamp + "-" + "datafile-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".dat";
                     string gnuPlotScriptName = timestamp + "-" + "gnuPlotScript-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".gp";
-                    string benchmarkingResultsName = timestamp + "-" + "Benchmarking-Results-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".png";
+                    string benchmarkingResultsName =  timestamp + "-" + "Benchmarking-Results-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".png";
 
                     //log = new Logger("log-" + DateTime.Now.ToFileTime());
-                    datafile = new Logger(datafileName);
-                    gnuPlotScript = new Logger(gnuPlotScriptName);
+                    datafile = new Logger(dir + "/" + datafileName);
+                    gnuPlotScript = new Logger(dir + "/" + gnuPlotScriptName);
 
                     datafile.Log(SystemInfo());
                     datafile.Log("\n" + config);
@@ -162,11 +173,19 @@ namespace Benchmark
 
                     if (config.TestConcurrentIntervalHeap)
                     {
-                        datafile.Log("\n\n" + "IntervalHeap");
-                        Console.WriteLine("IntervalHeap" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                        datafile.Log("\n\n" + "GlobalLockDEPQ");
                         new Benchmark().BenchMark(config, typeof(GlobalLockDEPQ<int>));
+                        Console.WriteLine("GlobalLockDEPQ " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
                         numberOfTests += 1;
                     }
+
+                    //if (config.TestConcurrentIntervalHeap)
+                    //{
+                    //    datafile.Log("\n\n" + "HuntLockDEPQ");
+                    //    new Benchmark().BenchMark(config, typeof(HuntLockDEPQ<int>));
+                    //    Console.WriteLine("HuntLockDEPQ " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                    //    numberOfTests += 1;
+                    //}
 
                     datafile.Close();
 
@@ -175,7 +194,8 @@ namespace Benchmark
                     gnuPlotScript.Log("set xlabel \"Threads\"");
                     gnuPlotScript.Log("set ylabel \"Throughput\"");
                     gnuPlotScript.Log("set xrange [" + (config.Threads[0] - 1) + ":" + (config.Threads[config.Threads.Length - 1] + 1) + "]");
-                    gnuPlotScript.Log("set yrange [0:" + (maxThroughput * 1.4) + "]");
+                    //change decimal seperator from , to . if this conversion not performed, gnuplot script will not run
+                    gnuPlotScript.Log("set yrange [0:" + (maxThroughput * 1.4).ToString("G", CultureInfo.CreateSpecificCulture("en-US")) + "]");
                     gnuPlotScript.Log("set output \'" + benchmarkingResultsName + "\'");
                     gnuPlotScript.Log("plot for [IDX=0:" + (numberOfTests - 1) + "] '" + datafileName + "' i IDX u 1:2 w lines title columnheader(1)");
                     gnuPlotScript.Close();
@@ -207,9 +227,9 @@ namespace Benchmark
                 //Inner loop that runs until standard deviation is below some threshold or it has done too many runs and throws an exception
                 while ((SecondsPerTestTimer.ElapsedMilliseconds / 1000.0) < ((config.SecondsPerTest * 1.0) / config.Threads[config.Threads.Length - 1]) || runs <= ((config.WarmupRuns) + config.Threads[0]))
                 {
-                    //dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
-                    dictionary = new GlobalLockDEPQ<int>(); // Create the correct dictionary for this run
-                    
+                    dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
+                    //dictionary = new GlobalLockDEPQ<int>(); // Create the correct dictionary for this run
+
                     // Get tree to correct size before we start, if applicable.  
                     if (config.Prefill)
                     {
@@ -248,7 +268,7 @@ namespace Benchmark
                         int start = config.StartRangeRandom;
                         int end = config.EndRangeRandom;
                         Queue<int> threadQueue = generateRandomQueue(config.CurrentNumberOfElements, start, end);
-                        Thread thread = new Thread(new ParameterizedThreadStart(Work));
+                        Thread thread = new Thread(Work);
                         thread.Start(threadQueue);
                     }
 
