@@ -1,10 +1,11 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
-using System.IO;
 using C5;
 using C5.concurrent;
 
@@ -33,26 +34,26 @@ namespace Benchmark
             // Create a config object and set the values
             // TEST RUN
             config.WarmupRuns = 2;
-            config.Threads = new int[] { 1, 2, 3, 4, 5, 6, 7, 8 };
-            config.NumberOfElements = new int[] { 10000, 100000 };
+            config.Threads = new[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+            config.NumberOfElements = new[] { 10000, 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
-            config.PercentageInsert = new int[] { 0, 20, 35 };
-            config.PercentageDelete = new int[] { 0, 10, 15 };
+            config.PercentageInsert = new[] { 0, 20, 35 };
+            config.PercentageDelete = new[] { 0, 10, 15 };
             config.Prefill = true;
 
              //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
             config.WarmupRuns = 4;
             //config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
             //config.Threads = new int[] { 1, 2 };
-            config.NumberOfElements = new int[] { 100000, 1000000 };
+            config.NumberOfElements = new[] { 100000, 1000000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 120;
             config.SecondsPerTest = 2;
             config.StartRangeRandom = 0;
-            config.PercentageInsert = new int[] { 0, 20, 35, 45 };
-            config.PercentageDelete = new int[] { 0, 10, 15, 40 };
+            config.PercentageInsert = new[] { 0, 20, 35, 45 };
+            config.PercentageDelete = new[] { 0, 10, 15, 40 };
             config.Prefill = true;
 
             config.TestConcurrentIntervalHeap = true;
@@ -71,7 +72,7 @@ namespace Benchmark
         /// </summary>
         static void RunStringComparerTest()
         {
-            var timer = new System.Diagnostics.Stopwatch();
+            var timer = new Stopwatch();
 
             IConcurrentPriorityQueue<string> standardDictionary;
             IConcurrentPriorityQueue<string> customDictionary;
@@ -145,7 +146,7 @@ namespace Benchmark
         static void RunBenchmark()
         {
             DateTime now = DateTime.Now;
-            timestamp = now.Year.ToString() + now.Month.ToString() + now.Day.ToString() + "-" + now.Hour.ToString() + now.Minute.ToString() + now.Second.ToString();
+            timestamp = now.Year + now.Month.ToString() + now.Day + "-" + now.Hour + now.Minute + now.Second;
 
             for (int i = 0; i < config.PercentageInsert.Length; i++)//Run the desired tests and log to the log, gnuplotPrint and gnuplotScript
             {
@@ -176,6 +177,7 @@ namespace Benchmark
                         datafile.Log("\n\n" + "GlobalLockDEPQ");
                         new Benchmark().BenchMark(config, typeof(GlobalLockDEPQ<int>));
                         Console.WriteLine("GlobalLockDEPQ " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
 
@@ -188,7 +190,7 @@ namespace Benchmark
                     //}
 
                     datafile.Close();
-
+                    
                     gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDelete + "% Delete / " + config.CurrentPercentageGet + "% Find" + "\"");
                     gnuPlotScript.Log("set terminal png truecolor size 800,600");
                     gnuPlotScript.Log("set xlabel \"Threads\"");
@@ -214,7 +216,7 @@ namespace Benchmark
         /// <param name="type"></param>
         void BenchMark(BenchmarkConfig config, Type type)
         {
-            var SecondsPerTestTimer = new System.Diagnostics.Stopwatch();
+            var SecondsPerTestTimer = new Stopwatch();
 
             //Run the benchmark for all the number of threads specified 
             foreach (int threadsToRun in config.Threads)
@@ -275,13 +277,14 @@ namespace Benchmark
                     barrier.SignalAndWait();// Wait for all tasks / threads to be ready to begin work
 
                    
-                    var t = new System.Diagnostics.Stopwatch(); // Start the timers
+                    var t = new Stopwatch(); // Start the timers
                     t.Start();
                     SecondsPerTestTimer.Start();
 
                     barrier.SignalAndWait(); // Wait for all tasks / threads to be finished with their work. Unlike Java, no need to reset the barrier in C#
 
                     double time = t.ElapsedTicks;// Get elapsed time
+                    config.ExecutionTime = t.ElapsedMilliseconds;
                     SecondsPerTestTimer.Stop();
                    
                     if (runs > config.WarmupRuns) // Only add results after the warmup runs
@@ -299,6 +302,8 @@ namespace Benchmark
                 {
                     maxThroughput = throughput;
                 }
+                //add a line with threads and execution time and a line with threads and throughput
+                //datafile.Log(threadsToRun + " " + config.ExecutionTime);
                 datafile.Log(threadsToRun + " " + throughput);
             }
         }
@@ -380,12 +385,12 @@ namespace Benchmark
         private static string SystemInfo()
         {
             return
-            "# OS:          " + Environment.OSVersion.VersionString + System.Environment.NewLine +
-            "# .NET vers:   " + Environment.Version + System.Environment.NewLine +
-            "# 64-bit OS:   " + Environment.Is64BitOperatingSystem + System.Environment.NewLine +
-            "# 64-bit proc: " + Environment.Is64BitProcess + System.Environment.NewLine +
+            "# OS:          " + Environment.OSVersion.VersionString + Environment.NewLine +
+            "# .NET vers:   " + Environment.Version + Environment.NewLine +
+            "# 64-bit OS:   " + Environment.Is64BitOperatingSystem + Environment.NewLine +
+            "# 64-bit proc: " + Environment.Is64BitProcess + Environment.NewLine +
             "# CPU:         " + Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") + "; "
-            + Environment.ProcessorCount + " cores" + System.Environment.NewLine +
+            + Environment.ProcessorCount + " cores" + Environment.NewLine +
             "# Date:        " + DateTime.Now;
         }
 
@@ -514,5 +519,7 @@ namespace Benchmark
             get;
             set;
         }
+
+        public long ExecutionTime{ get; set; }
     }
 }
