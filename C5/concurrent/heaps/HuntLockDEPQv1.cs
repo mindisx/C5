@@ -16,7 +16,6 @@ namespace C5.concurrent
 
         private class Interval
         {
-
             internal T element = default(T);
             internal object intervalLock = new object();
             internal int elementTag = -1;
@@ -500,7 +499,6 @@ namespace C5.concurrent
                 }
             }
         }
-
 
         public T FindMax()
         {
