@@ -120,15 +120,89 @@ namespace C5.concurrent
         /// <returns>boolean</returns>
         public bool Check()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                return true;
+
+            if (size == 1)
+                return (object)(minheap[0].element) != null && maxheap[0].element != null;
+
+            return checkMin(0) && checkMax(0);
         }
+
+        private bool checkMin(int i)
+        {
+            bool retval = true;
+            Interval min = minheap[i];
+            int l = 2 * i + 1;
+            int r = l + 1;
+            Interval left = null;
+            Interval right = null;
+
+            if (l < size && l < minheap.Length)
+                left = minheap[l];
+            if (r < size && r < minheap.Length)
+                right = minheap[r];
+
+            if (left != null)
+            {
+                if (comparer.Compare(min.element, left.element) > 0)
+                    retval = false;
+            }
+            if (right != null)
+            {
+                if (comparer.Compare(min.element, right.element) > 0)
+                    retval = false;
+            }
+
+            if (2 * l < size)
+                retval = retval && checkMin(l);
+
+            if (2 * r < size)
+                retval = retval && checkMin(r);
+
+            return retval;
+        }
+
+        private bool checkMax(int i)
+        {
+            bool retval = true;
+            Interval max = maxheap[i];
+            int l = 2 * i + 1;
+            int r = l + 1;
+            Interval left = null;
+            Interval right = null;
+
+            if (l < maxheap.Length)
+                left = maxheap[l];
+            if (r < maxheap.Length)
+                right = maxheap[r];
+
+            if (left != null)
+            {
+                if (comparer.Compare(max.element, left.element) < 0)
+                    retval = false;
+            }
+            if (right != null)
+            {
+                if (comparer.Compare(max.element, right.element) < 0)
+                    retval = false;
+            }
+
+            if (2 * l < size)
+                retval = retval && checkMax(l);
+
+            if (2 * r < size)
+                retval = retval && checkMax(r);
+
+            return retval;
+        }
+
 
         private bool deleteMinHeap(Handle handle, int heapsize, ref bool globalLockAcquired)
         {
-            bool indexLock = false, iIntervalLockAcquired = false,
+            bool indexLock = false, iIntervalLockAcquired = false, lastIntervalLockAcquired = false,
                       lIntervalLockAcquired = false, rIntervalLockAcquired = false;
             int i = 0;
-
             Monitor.TryEnter(handle.minlock, 5, ref indexLock);
             if (!indexLock)
                 return false;
@@ -142,12 +216,6 @@ namespace C5.concurrent
                         return false;//retry whole process to prevent dead lock
                     try
                     {
-                        size--;
-                        if (globalLockAcquired)
-                        {
-                            Monitor.Exit(globalLock);
-                            globalLockAcquired = false;
-                        }
                         minheap[i].element = default(T);
                         minheap[i].handle = default(Handle);
                         minheap[i].elementTag = Empty;
@@ -171,14 +239,11 @@ namespace C5.concurrent
                         return false; //retry whole process to prevent dead lock
                     try
                     {
-                        lock (minheap[heapsize - 1].intervalLock)
+                        Monitor.TryEnter(maxheap[heapsize - 1].intervalLock, 5, ref lastIntervalLockAcquired);
+                        if (!lastIntervalLockAcquired)
+                            return false; //retry whole process to prevent dead lock
+                        try
                         {
-                            //size--;
-                            //if (globalLockAcquired)
-                            //{
-                            //    Monitor.Exit(globalLock);
-                            //    globalLockAcquired = false;
-                            //}
                             minheap[i].element = minheap[heapsize - 1].element;
                             minheap[i].elementTag = Available;
                             minheap[i].handle = minheap[heapsize - 1].handle;
@@ -188,7 +253,14 @@ namespace C5.concurrent
                             minheap[heapsize - 1].elementTag = Empty;
 
                         }
-
+                        finally
+                        {
+                            if (lastIntervalLockAcquired)
+                            {
+                                Monitor.Exit(maxheap[heapsize - 1].intervalLock);
+                                lastIntervalLockAcquired = false;
+                            }
+                        }
                         if (indexLock)
                         {
                             Monitor.Exit(handle.minlock);
@@ -196,6 +268,7 @@ namespace C5.concurrent
                         }
 
                         #region  HeapifyMin
+
                         while (true)
                         {
                             int currentMin = i;
@@ -263,7 +336,7 @@ namespace C5.concurrent
 
                         #endregion
 
-                        if (minheap[i].elementTag != Empty)
+                        if (minheap[i].elementTag == Available)
                             minheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
                     }
                     finally
@@ -274,6 +347,9 @@ namespace C5.concurrent
                             iIntervalLockAcquired = false;
                         }
                     }
+
+                    if (minheap[i].elementTag != Empty)
+                        bubbleUpMin(i);
                 }
             }
             finally
@@ -284,37 +360,29 @@ namespace C5.concurrent
                     indexLock = false;
                 }
             }
-            if (minheap[i].elementTag != Empty)
-                bubbleUpMin(i);
             return true;
         }
 
 
         private bool deleteMaxHeap(Handle handle, int heapsize, ref bool globalLockAcquired)
         {
-            bool indexLock = false, iIntervalLockAcquired = false,
+            bool indexLock = false, iIntervalLockAcquired = false, lastIntervalLockAcquired = false,
                       lIntervalLockAcquired = false, rIntervalLockAcquired = false;
             int i = 0;
 
-            Monitor.TryEnter(handle.maxlock,5, ref indexLock);
+            Monitor.TryEnter(handle.maxlock, 5, ref indexLock);
             if (!indexLock)
                 return false;
             try
             {
+                i = handle.maxindex;
                 if (heapsize == 1)
                 {
-                    i = handle.maxindex;
                     Monitor.TryEnter(maxheap[i].intervalLock, 5, ref iIntervalLockAcquired);
                     if (!iIntervalLockAcquired)
                         return false;//retry whole process to prevent dead lock
                     try
                     {
-                        size--;
-                        if (globalLockAcquired)
-                        {
-                            Monitor.Exit(globalLock);
-                            globalLockAcquired = false;
-                        }
                         maxheap[i].element = default(T);
                         maxheap[i].handle = default(Handle);
                         maxheap[i].elementTag = Empty;
@@ -331,21 +399,16 @@ namespace C5.concurrent
                 }
                 else
                 {
-
-                    i = handle.maxindex;
                     Monitor.TryEnter(maxheap[i].intervalLock, 5, ref iIntervalLockAcquired);
                     if (!iIntervalLockAcquired)
                         return false; //retry whole process to prevent dead lock
                     try
                     {
-                        lock (maxheap[heapsize - 1].intervalLock)
+                        Monitor.TryEnter(maxheap[heapsize - 1].intervalLock, 5, ref lastIntervalLockAcquired);
+                        if (!lastIntervalLockAcquired)
+                            return false; //retry whole process to prevent dead lock
+                        try
                         {
-                            //size--;
-                            //if (globalLockAcquired)
-                            //{
-                            //    Monitor.Exit(globalLock);
-                            //    globalLockAcquired = false;
-                            //}
                             maxheap[i].element = maxheap[heapsize - 1].element;
                             maxheap[i].elementTag = Available;
                             maxheap[i].handle = maxheap[heapsize - 1].handle;
@@ -354,12 +417,21 @@ namespace C5.concurrent
                             maxheap[heapsize - 1].handle = default(Handle);
                             maxheap[heapsize - 1].elementTag = Empty;
                         }
+                        finally
+                        {
+                            if (lastIntervalLockAcquired)
+                            {
+                                Monitor.Exit(maxheap[heapsize - 1].intervalLock);
+                                lastIntervalLockAcquired = false;
+                            }
+                        }
 
                         if (indexLock)
                         {
                             Monitor.Exit(handle.maxlock);
                             indexLock = false;
                         }
+
 
                         #region  HeapifyMax
                         while (true)
@@ -428,7 +500,7 @@ namespace C5.concurrent
 
                         #endregion
 
-                        if (maxheap[i].elementTag != Empty)
+                        if (maxheap[i].elementTag == Available)
                             maxheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
                     }
                     finally
@@ -439,6 +511,8 @@ namespace C5.concurrent
                             iIntervalLockAcquired = false;
                         }
                     }
+                    if (maxheap[i].elementTag != Empty)
+                        bubbleUpMax(i);
                 }
             }
             finally
@@ -450,8 +524,6 @@ namespace C5.concurrent
                 }
             }
 
-            if (maxheap[i].elementTag != Empty)
-                bubbleUpMax(i);
             return true;
         }
 
@@ -488,6 +560,12 @@ namespace C5.concurrent
                             maxheap[0].element = default(T);
                             maxheap[0].handle = default(Handle);
                             maxheap[0].elementTag = Empty;
+                            size--;
+                            if (globalLockAcquired)
+                            {
+                                Monitor.Exit(globalLock);
+                                globalLockAcquired = false;
+                            }
                             return retval;
                         }
                     }
@@ -507,7 +585,10 @@ namespace C5.concurrent
                                 maxheap[0].element = maxheap[lastcell].element;
                                 maxheap[0].elementTag = Available;
                                 maxheap[0].handle = maxheap[lastcell].handle;
-                                maxheap[0].handle.maxindex = 0;
+                                lock (maxheap[0].handle.maxlock)
+                                {
+                                    maxheap[0].handle.maxindex = 0;
+                                }
                                 maxheap[lastcell].element = default(T);
                                 maxheap[lastcell].handle = default(Handle);
                                 maxheap[lastcell].elementTag = Empty;
@@ -636,13 +717,19 @@ namespace C5.concurrent
                     {
                         lock (minheap[0].intervalLock)
                         {
-                            retval = minheap[0].element;
                             if (!deleteMaxHeap(minheap[0].handle, size, ref globalLockAcquired))
                                 continue;
 
+                            retval = minheap[0].element;
                             minheap[0].element = default(T);
                             minheap[0].handle = default(Handle);
                             minheap[0].elementTag = Empty;
+                            size--;
+                            if (globalLockAcquired)
+                            {
+                                Monitor.Exit(globalLock);
+                                globalLockAcquired = false;
+                            }
                             return retval;
                         }
                     }
@@ -653,11 +740,11 @@ namespace C5.concurrent
                         try
                         {
                             lastcell = size - 1;
+
                             lock (minheap[lastcell].intervalLock)
                             {
                                 if (!deleteMaxHeap(minheap[0].handle, size, ref globalLockAcquired))
                                     continue; //retry
-
                                 retval = minheap[0].element;
                                 minheap[0].element = minheap[lastcell].element;
                                 minheap[0].elementTag = Available;
@@ -868,8 +955,7 @@ namespace C5.concurrent
             int s = 0;
             int i = 0;
 
-            Monitor.Enter(globalLock, ref globalLockAcquired);
-            try
+            lock (globalLock)
             {
                 if (size == minheap.Length || size == maxheap.Length)
                 {
@@ -877,36 +963,26 @@ namespace C5.concurrent
                 }
                 i = s = size;
 
+                Handle handle = new Handle();
+                handle.minindex = i;
+                handle.maxindex = i;
                 lock (minheap[i].intervalLock)
+                {
                     lock (maxheap[i].intervalLock)
                     {
-                        Handle handle = new Handle();
-                        handle.minindex = i;
-                        handle.maxindex = i;
-                        size++;
-                        if (globalLockAcquired)
-                        {
-                            Monitor.Exit(globalLock);
-                            globalLockAcquired = false;
-                        }
-                        maxheap[i].element = item;
-                        maxheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
-                        maxheap[i].handle = handle;
                         minheap[i].element = item;
                         minheap[i].elementTag = Thread.CurrentThread.ManagedThreadId; //assign thread id to the element
                         minheap[i].handle = handle;
+                        maxheap[i].element = item;
+                        maxheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
+                        maxheap[i].handle = handle;
                     }
-            }
-            finally
-            {
-                if (globalLockAcquired)
-                {
-                    Monitor.Exit(globalLock);
-                    globalLockAcquired = false;
                 }
+                size++;
             }
-            bubbleUpMax(i);
+
             bubbleUpMin(i);
+            bubbleUpMax(i);
             return true;
         }
 
