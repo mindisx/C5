@@ -105,7 +105,6 @@ namespace C5.concurrent
                         retval = minheap[0].element;
                         minheap[0].element = default(T);
                         minheap[0].elementTag = Empty;
-                        size = 0;
                         return retval;
                     }
                 }
@@ -143,7 +142,7 @@ namespace C5.concurrent
                             {
                                 retval = minheap[1].element;
                                 minheap[1].element = minheap[2].element;
-                                minheap[1].elementTag = minheap[2].elementTag;
+                                minheap[1].elementTag = Available;
                                 minheap[2].element = default(T);
                                 minheap[2].elementTag = Empty;
                                 return retval;
@@ -164,14 +163,12 @@ namespace C5.concurrent
 
                     lock (minheap[s - 1].intervalLock)
                     {
-                        size--;
                         last.element = minheap[s - 1].element;
-                        last.elementTag = Available;
                         minheap[s - 1].element = default(T);
                         minheap[s - 1].elementTag = Empty;
                     }
 
-                    s = size;//minus 1, due to grab above
+                    s = s - 1;//minus 1, due to grab above
                     int d = (int)Math.Log(s, 2);
                     int r = s - 1; //point to last element 
                     int l = (r + 1) / 2; //get right element, next to parent
@@ -182,6 +179,7 @@ namespace C5.concurrent
                     }
                     try
                     {
+                        size--;
                         if (globalLockAcquired)
                         {
                             Monitor.Exit(globallock);
@@ -234,7 +232,7 @@ namespace C5.concurrent
                     {
                         retval = minheap[maxIndex].element;
                         minheap[maxIndex].element = last.element;
-                        minheap[maxIndex].elementTag = last.elementTag;
+                        minheap[maxIndex].elementTag = Available;
                     }
                 }//end if
 
@@ -311,7 +309,7 @@ namespace C5.concurrent
                                 rIntervalLockAcquired = false; //reset lock flag
                                 continue; //continue with the while loop
                             }
-                            if (y != 0)
+                            if (y > 0 && minheap[y].elementTag == Available)
                             {
                                 minheap[y].elementTag = Thread.CurrentThread.ManagedThreadId;
                             }
@@ -330,11 +328,12 @@ namespace C5.concurrent
                         if (yIntervalLockAcquired)
                         {
                             Monitor.Exit(minheap[y].intervalLock); //release parent node lock, aka i'th node
+                            yIntervalLockAcquired = false;
                         }
                     }
                 } //end while
 
-                if (y != 0)
+                if (y > 0)
                 {
                     bubbleUpMin(y);
                 }
@@ -377,7 +376,6 @@ namespace C5.concurrent
                     }
 
                     last.element = minheap[lastcell].element;
-                    last.elementTag = Available;
                     minheap[lastcell].element = default(T);
                     minheap[lastcell].elementTag = Empty;
                 }
