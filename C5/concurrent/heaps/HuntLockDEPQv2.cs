@@ -336,8 +336,9 @@ namespace C5.concurrent
 
                         #endregion
 
-                        if (minheap[i].elementTag == Available)
-                            minheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
+                        if (i > i)
+                            if (minheap[i].elementTag == Available)
+                                minheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
                     }
                     finally
                     {
@@ -347,8 +348,7 @@ namespace C5.concurrent
                             iIntervalLockAcquired = false;
                         }
                     }
-
-                    if (minheap[i].elementTag != Empty)
+                    if (i > 0)
                         bubbleUpMin(i);
                 }
             }
@@ -500,8 +500,9 @@ namespace C5.concurrent
 
                         #endregion
 
-                        if (maxheap[i].elementTag == Available)
-                            maxheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
+                        if (i > 0)
+                            if (maxheap[i].elementTag == Available)
+                                maxheap[i].elementTag = Thread.CurrentThread.ManagedThreadId;
                     }
                     finally
                     {
@@ -511,7 +512,7 @@ namespace C5.concurrent
                             iIntervalLockAcquired = false;
                         }
                     }
-                    if (maxheap[i].elementTag != Empty)
+                    if (i > 0)
                         bubbleUpMax(i);
                 }
             }
