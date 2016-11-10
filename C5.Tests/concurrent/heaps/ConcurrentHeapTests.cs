@@ -38,7 +38,7 @@ namespace C5UnitTests.concurrent
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new HuntLockDEPQ<int>(); }
+        public void Init() { queue = new HuntLockDEPQv2<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
@@ -140,12 +140,12 @@ namespace C5UnitTests.concurrent
         public void MillionInserts()
         {
             Random rng = new Random();
-            for(int i = 0; i < 1000000; i++)
+            for (int i = 0; i < 100; i++)
             {
-                int ran = rng.Next(100000);
+                int ran = rng.Next(1000);
                 queue.Add(ran);
             }
-            Assert.AreEqual(1000000, queue.Count);
+            Assert.AreEqual(100, queue.Count);
             queue.All();
         }
 
@@ -191,9 +191,9 @@ namespace C5UnitTests.concurrent
 
         public void Init()
         {
-            queue = new HuntLockDEPQ<int>();
+            queue = new HuntLockDEPQv2<int>();
             threadCount = Environment.ProcessorCount + 2;
-            n = 20;
+            n = 100;
         }
 
         [TearDown]
@@ -203,17 +203,14 @@ namespace C5UnitTests.concurrent
         }
 
 
-        //[Test]
-        //[Repeat(10)]
+        [Test]
         public void CountTest()
         {
             Assert.AreEqual(0, queue.Count);
             Random rng = new Random();
             List<int> list = new List<int>();
             for (int i = 0; i < n * threadCount; i++)
-            {
                 list.Add(rng.Next(1000));
-            }
 
             List<int[]> partitions = new List<int[]>();
             for (int i = 0; i < threadCount; i++)
@@ -231,12 +228,9 @@ namespace C5UnitTests.concurrent
             Parallel.ForEach(partitions, (partition) =>
             {
                 for (int i = 0; i < partition.Length; i++)
-                {
                     queue.Add(partition[i]);
-                }
             });
 
-            Assert.IsTrue(queue.Check());
             Assert.AreEqual(list.Count, queue.Count);
             Parallel.ForEach(partitions, (partition) =>
             {
@@ -250,17 +244,14 @@ namespace C5UnitTests.concurrent
             Assert.AreEqual(0, queue.Count);
         }
 
-        //[Test]
-        //[Repeat(10)]
+        [Test]
         public void IsEmptyTest()
         {
             Assert.IsTrue(queue.IsEmpty());
             Random rng = new Random();
             List<int> list = new List<int>();
             for (int i = 0; i < n * threadCount; i++)
-            {
                 list.Add(rng.Next(1000));
-            }
 
             List<int[]> partitions = new List<int[]>();
             for (int i = 0; i < threadCount; i++)
@@ -278,14 +269,10 @@ namespace C5UnitTests.concurrent
             Parallel.ForEach(partitions, (partition) =>
             {
                 for (int i = 0; i < partition.Length; i++)
-                {
                     queue.Add(partition[i]);
-                }
             });
 
-            Assert.IsTrue(queue.Check());
             Assert.AreEqual(list.Count, queue.Count);
-
             Parallel.ForEach(partitions, (partition) =>
             {
                 int c = n;
@@ -295,12 +282,10 @@ namespace C5UnitTests.concurrent
                     c--;
                 }
             });
-
             Assert.IsTrue(queue.IsEmpty());
         }
 
         //[Test]
-        //[Repeat(10)]
         public void FindMaxTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.FindMax());
@@ -339,7 +324,6 @@ namespace C5UnitTests.concurrent
         }
 
         //[Test]
-        //[Repeat(10)]
         public void FindMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.FindMin());
@@ -379,15 +363,12 @@ namespace C5UnitTests.concurrent
 
 
         [Test]
-        [Repeat(10)]
         public void AddTest()
         {
             Random rng = new Random();
             List<int> list = new List<int>();
             for (int i = 0; i < n * threadCount; i++)
-            {
                 list.Add(rng.Next(1000));
-            }
 
             List<int[]> partitions = new List<int[]>();
             for (int i = 0; i < threadCount; i++)
@@ -405,30 +386,28 @@ namespace C5UnitTests.concurrent
             Parallel.ForEach(partitions, (partition) =>
             {
                 for (int i = 0; i < partition.Length; i++)
-                {
                     queue.Add(partition[i]);
-                }
             });
 
-            Assert.IsTrue(queue.Check());
             Assert.AreEqual(list.Count, queue.Count);
-
             List<int> listTest = new List<int>();
             while (queue.Count > 0)
             {
-                listTest.Add(queue.DeleteMax());
+                try
+                {
+                    listTest.Add(queue.DeleteMin());
+                }
+                catch (Exception e)
+                {
+                    throw e;
+                }
             }
-
             Assert.AreEqual(list.Count, listTest.Count);
-
             for (int i = 0; i < list.Count; i++)
-            {
                 Assert.IsTrue(listTest.Contains(list[i]));
-            }
         }
 
-        [Test]
-        [Repeat(10)]
+        //[Test]
         public void AllTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.All());
@@ -472,7 +451,6 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
-        [Repeat(10)]
         public void DeleteMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
@@ -496,6 +474,7 @@ namespace C5UnitTests.concurrent
                 partitions.Add(par);
             }
 
+
             Parallel.ForEach(partitions, (partition) =>
             {
                 for (int i = 0; i < partition.Length; i++)
@@ -507,7 +486,6 @@ namespace C5UnitTests.concurrent
             Assert.AreEqual(list.Count, queue.Count);
             list.Sort();
 
-
             ConcurrentQueue<int> bag = new ConcurrentQueue<int>();
             Parallel.ForEach(partitions, (partition) =>
             {
@@ -518,21 +496,11 @@ namespace C5UnitTests.concurrent
             });
 
             Assert.AreEqual(list.Count, bag.Count);
-            //int[] all = queue.All().OrderBy(i => i).ToArray();
-            //for (int i = 0; i < list.Count; i++)
-            //{
-            //    int last = list[i];
-            //    int min = queue.DeleteMin();
-            //    Assert.AreEqual(last, min);
-            //}
-
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
-
         }
 
         [Test]
-        [Repeat(10)]
         public void DeleteMaxTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
@@ -540,9 +508,7 @@ namespace C5UnitTests.concurrent
             Random rng = new Random();
             List<int> list = new List<int>();
             for (int i = 0; i < n * threadCount; i++)
-            {
                 list.Add(rng.Next(1000));
-            }
 
             List<int[]> partitions = new List<int[]>();
             for (int i = 0; i < threadCount; i++)
@@ -560,136 +526,67 @@ namespace C5UnitTests.concurrent
             Parallel.ForEach(partitions, (partition) =>
             {
                 for (int i = 0; i < partition.Length; i++)
-                {
                     queue.Add(partition[i]);
-                }
             });
-            Assert.AreEqual(list.Count, queue.Count);
 
+            Assert.AreEqual(list.Count, queue.Count);
             ConcurrentQueue<int> bag = new ConcurrentQueue<int>();
             Parallel.ForEach(partitions, (partition) =>
             {
                 for (int i = 0; i < partition.Length; i++)
-                {
                     bag.Enqueue(queue.DeleteMax());
-                }
             });
-
             Assert.AreEqual(list.Count, bag.Count);
-
-            //Assert.IsTrue(queue.Check());
-
-            //list = list.OrderByDescending(i => i).ToList();
-            //int[] all = queue.All().OrderByDescending(i => i).ToArray();
-            //for (int i = 0; i < list.Count; i++)
-            //{
-            //    int last = list[i];
-            //    int max = queue.DeleteMax();
-            //    Assert.AreEqual(last, max);
-            //}
             Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
         }
 
         [Test]
-       // [Repeat(10)]
         public void ConcurrentTest()
         {
-            int insertPercent = 45;
-            int deleteMinPercent = 25;
-            //int deleteMaxPercent = 25;
-            int allPercent = 0;
+            int insertPercent = 50,
+                deleteMinPercent = 25,
+                deleteMax = 100 - insertPercent - deleteMinPercent;
+
             int[] threads = new int[threadCount];
             for (int i = 0; i < threads.Length; i++)
                 threads[i] = i;
-            ConcurrentBag<int> cinsertBag = new ConcurrentBag<int>();
-            ConcurrentBag<int> cdeleteBag = new ConcurrentBag<int>();
+            ConcurrentBag<int> cinsertBag = new ConcurrentBag<int>(),
+                cmindeleteBag = new ConcurrentBag<int>(), cmaxdeleteBag = new ConcurrentBag<int>();
             Parallel.ForEach(threads, (t) =>
             {
-                List<int> insertbag = new List<int>();
-                List<int> deletebag = new List<int>();
-                int iterations = 10;
+                int iterations = 1000;
                 Random prng = new Random();
                 Random rng = new Random();
                 while (iterations >= 0)
                 {
                     int percent = prng.Next(0, 100);
-                    if (percent >= 100 - insertPercent)
+                    if (percent >= (100 - insertPercent))
                     {
                         int element = rng.Next(10000);
-                        insertbag.Add(element);
+                        cinsertBag.Add(element);
                         queue.Add(element);
                     }
-                    else if (percent >= 100 - insertPercent - deleteMinPercent)
+                    else if (percent >= (100 - insertPercent - deleteMinPercent))
+                        try
+                        {
+                            cmindeleteBag.Add(queue.DeleteMin());
+                        }
+                        catch (Exception e) {   /*ignore*/     }
+                    else
                     {
                         try
                         {
-                            if (!queue.IsEmpty())
-                            {
-                                int element = queue.DeleteMin();
-                                deletebag.Add(element);
-                            }
+                            cmaxdeleteBag.Add(queue.DeleteMax());
                         }
-                        catch (Exception e)
-                        {
-                            //ignore
-                        }
+                        catch (Exception e) {   /*ignore*/     }
                     }
-                    //else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent)
-                    //{
-                    //    try
-                    //    {
-                    //        if (!queue.IsEmpty())
-                    //        {
-                    //            int element = queue.DeleteMax();
-                    //            deletebag.Add(element);
-                    //        }
-                    //    }
-                    //    catch (NoSuchItemException e)
-                    //    {
-                    //        //ignore
-                    //    }
-                    //}
-                    //else if (percent >= 100 - insertPercent - deleteMinPercent - deleteMaxPercent - allPercent)
-                    //{
-                    //    try
-                    //    {
-                    //        int[] testlist = (int[])queue.All();
-                    //    }
-                    //    catch (NoSuchItemException e)
-                    //    {
-                    //        //ignore
-                    //    }
-                    //}
-                    //else
-                    //{
-                    //    try
-                    //    {
-                    //        if (!queue.IsEmpty())
-                    //        {
-                    //            int maxelement = queue.FindMax();
-                    //            int minelement = queue.FindMin();
-                    //        }
-                    //    }
-                    //    catch (NoSuchItemException e)
-                    //    {
-                    //        //ignore
-                    //    }
-                    //}
                     iterations--;
                 }
-
-                foreach (int i in insertbag)
-                    cinsertBag.Add(i);
-
-                foreach (int i in deletebag)
-                    cdeleteBag.Add(i);
-
             });
-            //Assert.IsTrue(queue.Check());
-            List<int> cl =  cinsertBag.OrderByDescending(i => i).ToList();
-            List<int> dl = cdeleteBag.OrderByDescending(i => i).ToList();
-            Assert.AreEqual(cl.Count, dl.Count + queue.Count);
+
+            Assert.AreEqual(cinsertBag.Count, cmindeleteBag.Count + cmaxdeleteBag.Count + queue.Count);
+            List<int> listTest = new List<int>();
         }
     }
     #endregion
