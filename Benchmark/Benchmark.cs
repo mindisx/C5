@@ -27,42 +27,47 @@ namespace Benchmark
 
         public static void Main(String[] args)
         {
-            
+
             Directory.CreateDirectory(dir); //create outut folder
             Console.WriteLine(SystemInfo()); // Print system info
 
             // Create a config object and set the values
             // TEST RUN
             config.WarmupRuns = 2;
-            config.Threads = new[] { 1, 2, 3, 4, 5, 6, 7, 8 };
-            config.NumberOfElements = new[] { 10000, 100000 };
+            config.Threads = new[] { 1, 2, 4, 6, 12 };
+            config.NumberOfElements = new[] { 10000, 100000, 1000000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
             config.PercentageInsert = new[] { 0, 20, 35 };
-            config.PercentageDelete = new[] { 0, 10, 15 };
+            config.PercentageDeleteMin = new[] { 0, 10, 15 };
+            config.PercentageDeleteMax = new[] { 0, 10, 15 };
             config.Prefill = true;
 
-             //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
-            config.WarmupRuns = 4;
+            //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
+            //config.WarmupRuns = 4;
             //config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
             //config.Threads = new int[] { 1, 2 };
-            config.NumberOfElements = new[] { 100000, 1000000 };
-            config.MinRuns = 3;
-            config.SecondsPerTest = 120;
-            config.SecondsPerTest = 2;
-            config.StartRangeRandom = 0;
-            config.PercentageInsert = new[] { 0, 20, 35, 45 };
-            config.PercentageDelete = new[] { 0, 10, 15, 40 };
-            config.Prefill = true;
+            //config.NumberOfElements = new[] { 100000, 1000000 };
+            //config.MinRuns = 3;
+            //config.SecondsPerTest = 120;
+            //config.SecondsPerTest = 2;
+            //config.StartRangeRandom = 0;
+            //config.PercentageInsert = new[] { 0, 20, 35, 45 };
+            //config.PercentageDelete = new[] { 0, 10, 15, 40 };
+            //config.Prefill = true;
 
-            config.TestConcurrentIntervalHeap = true;
+            config.GlobalLockDEPQ = true;
+            config.HuntLockDEPQv1 = false;
+            config.HuntLockDEPQv2 = false;
+            config.HuntLockDEPQv3 = true;
+
 
             RunBenchmark();// Run the benchmark
 
             // StringComparer Test
             // IMPORTANT: DONE THIS WAY DUE TO STRINGCOMPARER NOT WORKING WITH GENERIC TYPES (OBVIOUSLY)
-            RunStringComparerTest();
+            //RunStringComparerTest();
 
         }
 
@@ -90,7 +95,7 @@ namespace Benchmark
             }
             #region custom
             customDictionary = new GlobalLockDEPQ<string>();
-            
+
             timer.Reset();
             timer.Start();
             foreach (string element in customList)
@@ -99,7 +104,7 @@ namespace Benchmark
             }
             timer.Stop();
             Console.WriteLine("Custom time Add:   " + timer.ElapsedTicks);
-            
+
 
             timer.Reset();
             timer.Start();
@@ -156,12 +161,15 @@ namespace Benchmark
                     config.EndRangeRandom = elements;
                     config.CurrentNumberOfElements = elements;
                     config.CurrentPercentageInsert = config.PercentageInsert[i];
-                    config.CurrentPercentageDelete = config.PercentageDelete[i];
-                    config.CurrentPercentageGet = 100 - config.PercentageInsert[i] - config.PercentageDelete[i];
+                    config.CurrentPercentageDeleteMin = config.PercentageDeleteMin[i];
+                    config.CurrentPercentageDeleteMax = config.PercentageDeleteMax[i];
+                    config.CurrentPercentageGetMin = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i]) / 2;
+                    config.CurrentPercentageGetMax = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i] - config.CurrentPercentageGetMin);
 
-                    string datafileName = timestamp + "-" + "datafile-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".dat";
-                    string gnuPlotScriptName = timestamp + "-" + "gnuPlotScript-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".gp";
-                    string benchmarkingResultsName =  timestamp + "-" + "Benchmarking-Results-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete + ".png";
+
+                    string datafileName = timestamp + "-" + "datafile-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax + ".dat";
+                    string gnuPlotScriptName = timestamp + "-" + "gnuPlotScript-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax + ".gp";
+                    string benchmarkingResultsName = timestamp + "-" + "Benchmarking-Results-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax + ".png";
 
                     //log = new Logger("log-" + DateTime.Now.ToFileTime());
                     datafile = new Logger(dir + "/" + datafileName);
@@ -172,26 +180,45 @@ namespace Benchmark
 
                     int numberOfTests = 0;
 
-                    if (config.TestConcurrentIntervalHeap)
+                    if (config.GlobalLockDEPQ)
                     {
                         datafile.Log("\n\n" + "GlobalLockDEPQ");
                         new Benchmark().BenchMark(config, typeof(GlobalLockDEPQ<int>));
-                        Console.WriteLine("GlobalLockDEPQ " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
+                        Console.WriteLine("GlobalLockDEPQ  " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
 
-                    //if (config.TestConcurrentIntervalHeap)
-                    //{
-                    //    datafile.Log("\n\n" + "HuntLockDEPQ");
-                    //    new Benchmark().BenchMark(config, typeof(HuntLockDEPQ<int>));
-                    //    Console.WriteLine("HuntLockDEPQ " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDelete);
-                    //    numberOfTests += 1;
-                    //}
+                    if (config.HuntLockDEPQv1)
+                    {
+                        datafile.Log("\n\n" + "HuntLockDEPQv1");
+                        new Benchmark().BenchMark(config, typeof(HuntLockDEPQv1<int>));
+                        Console.WriteLine("HuntLockDEPQv1 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
+
+                    if (config.HuntLockDEPQv2)
+                    {
+                        datafile.Log("\n\n" + "HuntLockDEPQv2");
+                        new Benchmark().BenchMark(config, typeof(HuntLockDEPQv2<int>));
+                        Console.WriteLine("HuntLockDEPQv2 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
+
+                    if (config.HuntLockDEPQv3)
+                    {
+                        datafile.Log("\n\n" + "HuntLockDEPQv3");
+                        new Benchmark().BenchMark(config, typeof(HuntLockDEPQv3<int>));
+                        Console.WriteLine("HuntLockDEPQv3 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
 
                     datafile.Close();
-                    
-                    gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDelete + "% Delete / " + config.CurrentPercentageGet + "% Find" + "\"");
+
+                    gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / " + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/");
                     gnuPlotScript.Log("set terminal png truecolor size 800,600");
                     gnuPlotScript.Log("set xlabel \"Threads\"");
                     gnuPlotScript.Log("set ylabel \"Throughput\"");
@@ -245,9 +272,9 @@ namespace Benchmark
                         int r = config.EndRangeRandom - config.StartRangeRandom;
                         int steadyStateSize = config.CurrentNumberOfElements / 2;
 
-                        if (config.CurrentPercentageInsert > 0 && config.CurrentPercentageDelete > 0)
+                        if (config.CurrentPercentageInsert > 0 && config.CurrentPercentageDeleteMin > 0 && config.CurrentPercentageDeleteMax > 0)
                         {
-                            steadyStateSize = (r * config.CurrentPercentageInsert) / (config.CurrentPercentageInsert + config.CurrentPercentageDelete);
+                            steadyStateSize = (r * config.CurrentPercentageInsert) / (config.CurrentPercentageInsert + config.CurrentPercentageDeleteMin + config.CurrentPercentageDeleteMax);
                         }
 
                         if (steadyStateSize > r)
@@ -263,7 +290,7 @@ namespace Benchmark
 
                     // Create the start and end barrier
                     barrier = new Barrier(threadsToRun + 1);
-                    
+
                     // Submit the work
                     for (int threads = 1; threads <= threadsToRun; threads++)
                     {
@@ -276,7 +303,7 @@ namespace Benchmark
 
                     barrier.SignalAndWait();// Wait for all tasks / threads to be ready to begin work
 
-                   
+
                     var t = new Stopwatch(); // Start the timers
                     t.Start();
                     SecondsPerTestTimer.Start();
@@ -286,13 +313,13 @@ namespace Benchmark
                     double time = t.ElapsedTicks;// Get elapsed time
                     config.ExecutionTime = t.ElapsedMilliseconds;
                     SecondsPerTestTimer.Stop();
-                   
+
                     if (runs > config.WarmupRuns) // Only add results after the warmup runs
                     {
                         Int64 toAdd = (Int64)(((config.CurrentNumberOfElements * threadsToRun) / time) * 1000.0 * 10000.0);
                         tempThroughPut.Add(toAdd);
                     }
-                    
+
                     runs++;// Increment number of runs
                 }
 
@@ -349,13 +376,37 @@ namespace Benchmark
                 {
                     dictionary.Add(element);
                 }
-                else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageGet))
+                else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin))
                 {
-                    dictionary.FindMin();
+                    try
+                    {
+                        dictionary.DeleteMin();
+                    }
+                    catch (Exception) { }
+                }
+                else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin - config.CurrentPercentageDeleteMax))
+                {
+                    try
+                    {
+                        dictionary.DeleteMax();
+                    }
+                    catch (Exception) { }
+                }
+                else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin - config.CurrentPercentageDeleteMax - config.CurrentPercentageGetMin))
+                {
+                    try
+                    {
+                        dictionary.FindMin();
+                    }
+                    catch (Exception) { }
                 }
                 else
                 {
-                    dictionary.DeleteMin();
+                    try
+                    {
+                        dictionary.FindMax();
+                    }
+                    catch (Exception) { }
                 }
             }
             barrier.SignalAndWait();// Let main thread know we are done
@@ -408,17 +459,21 @@ namespace Benchmark
             "# StartRangeRandom:  {3} \n" +
             "# EndRangeRandom:    {4} \n" +
             "# Insert%:           {5} \n" +
-            "# Delete%:           {6} \n" +
-            "# Get%:              {7} \n" +
-            "# Prefill:           {8}",
+            "# DeleteMin%:        {6} \n" +
+            "# DeleteMax%:		  {7} \n" +
+            "# GetMin%:           {8} \n" +
+            "# GetMax%:           {9} \n" +
+            "# Prefill:           {10}",
             WarmupRuns,
             CurrentNumberOfElements,
             SecondsPerTest,
             StartRangeRandom,
             EndRangeRandom,
             CurrentPercentageInsert,
-            CurrentPercentageDelete,
-            CurrentPercentageGet,
+            CurrentPercentageDeleteMin,
+            CurrentPercentageDeleteMax,
+            CurrentPercentageGetMin,
+            CurrentPercentageGetMax,
             Prefill
             );
         }
@@ -454,19 +509,36 @@ namespace Benchmark
             set;
         }
 
-        public int[] PercentageDelete
+        public int[] PercentageDeleteMax
         {
             get;
             set;
         }
 
-        public int CurrentPercentageDelete
+        public int[] PercentageDeleteMin
         {
             get;
             set;
         }
 
-        public int CurrentPercentageGet
+        public int CurrentPercentageDeleteMin
+        {
+            get;
+            set;
+        }
+
+        public int CurrentPercentageDeleteMax
+        {
+            get;
+            set;
+        }
+
+        public int CurrentPercentageGetMin
+        {
+            get;
+            set;
+        }
+        public int CurrentPercentageGetMax
         {
             get;
             set;
@@ -484,7 +556,25 @@ namespace Benchmark
             set;
         }
 
-        public bool TestConcurrentIntervalHeap
+        public bool GlobalLockDEPQ
+        {
+            get;
+            set;
+        }
+
+        public bool HuntLockDEPQv1
+        {
+            get;
+            set;
+        }
+
+        public bool HuntLockDEPQv2
+        {
+            get;
+            set;
+        }
+
+        public bool HuntLockDEPQv3
         {
             get;
             set;
@@ -520,6 +610,6 @@ namespace Benchmark
             set;
         }
 
-        public long ExecutionTime{ get; set; }
+        public long ExecutionTime { get; set; }
     }
 }

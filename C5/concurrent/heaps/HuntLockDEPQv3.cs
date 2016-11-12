@@ -684,25 +684,166 @@ namespace C5.concurrent
             }
         }
 
+        //private bool add(T item)
+        //{
+        //    bool globalLockAcquired = false;
+        //    bool bubbleupmax = false;
+        //    int i = 0;
+
+        //    while (true) //run until new element will be added to min or max heap
+        //    {
+        //        Monitor.Enter(globalLock, ref globalLockAcquired);//lock heap
+        //        try
+        //        {
+        //            if (size == heap.Length * 2)
+        //            {
+        //                locks = resize(); //resize array and assign new set of locks
+        //            }
+
+        //            if (size == 0)
+        //            {
+        //                lock (heap[0].intervalLock) //lock first interval node
+        //                {
+        //                    size++;
+        //                    if (globalLockAcquired)
+        //                    {
+        //                        Monitor.Exit(globalLock); //exit global lock
+        //                        globalLockAcquired = false;
+        //                    }
+        //                    heap[0].first = item;
+        //                    heap[0].firstTag = Available; //assign thread id to the element
+        //                    return true;
+        //                }//unlock interval node
+        //            }
+
+        //            i = size / 2;
+        //            if (size != 0) //if not the fist elment
+        //            {
+        //                if (size % 2 == 0)
+        //                {
+        //                    int p = (i + 1) / 2 - 1;
+        //                    lock (heap[p].intervalLock) //lock parent node
+        //                    {
+        //                        if (heap[p].lastTag != Available)// && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId) //check if parent element is available and current elment is from current thread
+        //                            continue;
+        //                        lock (heap[i].intervalLock) //lock last node
+        //                        {
+
+        //                            size++;
+        //                            if (globalLockAcquired)
+        //                            {
+        //                                Monitor.Exit(globalLock); //exit global lock
+        //                                globalLockAcquired = false;
+        //                            }
+        //                            heap[i].first = item;
+        //                            heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
+        //                            if (comparer.Compare(item, heap[p].last) > 0) //new element is larger than the parent's max element.
+        //                            {
+        //                                swapFirstWithLast(i, p); //swap elements and tags
+        //                                i = p; // assign new current node
+        //                                bubbleupmax = true; //new element belongs to max heap.
+        //                                break; //exit while
+        //                            }
+        //                            else //if (heap[p].firstTag == Available && heap[i].firstTag == Thread.CurrentThread.ManagedThreadId)
+        //                            {
+        //                                bubbleupmax = false;
+        //                                break;
+        //                            }
+
+        //                        } //unlock current node
+        //                    } // unlock parent node
+
+        //                }
+        //                else
+        //                {
+        //                    lock (heap[i].intervalLock)
+        //                    {
+        //                        if (heap[i].firstTag == Available)// && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
+        //                        {
+        //                            size++;
+        //                            if (globalLockAcquired)
+        //                            {
+        //                                Monitor.Exit(globalLock); //exit global lock
+        //                                globalLockAcquired = false;
+        //                            }
+        //                            heap[i].last = item;
+        //                            heap[i].lastTag = Thread.CurrentThread.ManagedThreadId;
+        //                            if (comparer.Compare(heap[i].last, heap[i].first) < 0) //new element is smaller than the current min element
+        //                            {
+        //                                swapFirstWithLast(i, i);
+        //                                bubbleupmax = false; //new element belongs to min heap
+        //                                break; //exit while
+        //                            }
+        //                            else //new element is larger than the current min element
+        //                            {
+        //                                bubbleupmax = true; //new element belongs to max heap
+        //                                break; //exit while
+        //                            }
+        //                        }
+        //                        else if (heap[i].firstTag == Empty) //parent node is empty
+        //                        {
+        //                            continue; //insert complete
+        //                        }
+        //                    } //unlock current node
+        //                }
+        //            }
+        //        }
+        //        finally
+        //        {
+        //            if (globalLockAcquired)
+        //            {
+        //                Monitor.Exit(globalLock); //exit global lock
+        //                globalLockAcquired = false;
+        //            }
+        //        }
+        //    }
+        //    if (bubbleupmax) //new element belongs to max heap
+        //    {
+        //        bubbleUpMax(i); //bubble up new element from node i in max heap
+        //    }
+        //    else //new element belongs to min heap
+        //    {
+        //        bubbleUpMin(i); //bubble up new element from node i in min heap
+        //    }
+        //    return true;
+        //}
+
         private bool add(T item)
         {
             bool globalLockAcquired = false;
             bool bubbleupmax = false;
             int i = 0;
 
-            while (true) //run until new element will be added to min or max heap
+            Monitor.Enter(globalLock, ref globalLockAcquired);//lock heap
+            try
             {
-                Monitor.Enter(globalLock, ref globalLockAcquired);//lock heap
-                try
+                if (size == heap.Length * 2)
                 {
-                    if (size == heap.Length * 2)
-                    {
-                        locks = resize(); //resize array and assign new set of locks
-                    }
+                    locks = resize(); //resize array and assign new set of locks
+                }
 
-                    if (size == 0)
+                if (size == 0)
+                {
+                    lock (heap[0].intervalLock) //lock first interval node
                     {
-                        lock (heap[0].intervalLock) //lock first interval node
+                        size++;
+                        if (globalLockAcquired)
+                        {
+                            Monitor.Exit(globalLock); //exit global lock
+                            globalLockAcquired = false;
+                        }
+                        heap[0].first = item;
+                        heap[0].firstTag = Available; //assign thread id to the element
+                        return true;
+                    }//unlock interval node
+                }
+
+                i = size / 2;
+                if (size != 0) //if not the fist elment
+                {
+                    if (size % 2 == 0)
+                    {
+                        lock (heap[i].intervalLock)
                         {
                             size++;
                             if (globalLockAcquired)
@@ -710,16 +851,10 @@ namespace C5.concurrent
                                 Monitor.Exit(globalLock); //exit global lock
                                 globalLockAcquired = false;
                             }
-                            heap[0].first = item;
-                            heap[0].firstTag = Available; //assign thread id to the element
-                            return true;
-                        }//unlock interval node
-                    }
-
-                    i = size / 2;
-                    if (size != 0) //if not the fist elment
-                    {
-                        if (size % 2 == 0)
+                            heap[i].first = item;
+                            heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
+                        }
+                        while (true) //run until new element will be added to min or max heap
                         {
                             int p = (i + 1) / 2 - 1;
                             lock (heap[p].intervalLock) //lock parent node
@@ -729,14 +864,6 @@ namespace C5.concurrent
                                 lock (heap[i].intervalLock) //lock last node
                                 {
 
-                                    size++;
-                                    if (globalLockAcquired)
-                                    {
-                                        Monitor.Exit(globalLock); //exit global lock
-                                        globalLockAcquired = false;
-                                    }
-                                    heap[i].first = item;
-                                    heap[i].firstTag = Thread.CurrentThread.ManagedThreadId;
                                     if (comparer.Compare(item, heap[p].last) > 0) //new element is larger than the parent's max element.
                                     {
                                         swapFirstWithLast(i, p); //swap elements and tags
@@ -749,25 +876,31 @@ namespace C5.concurrent
                                         bubbleupmax = false;
                                         break;
                                     }
+                                }
+                            } //unlock current node
+                        } // unlock parent node
 
-                                } //unlock current node
-                            } // unlock parent node
-
+                    }
+                    else
+                    {
+                        lock (heap[i].intervalLock)
+                        {
+                            size++;
+                            if (globalLockAcquired)
+                            {
+                                Monitor.Exit(globalLock); //exit global lock
+                                globalLockAcquired = false;
+                            }
+                            heap[i].last = item;
+                            heap[i].lastTag = Thread.CurrentThread.ManagedThreadId;
                         }
-                        else
+
+                        while (true)
                         {
                             lock (heap[i].intervalLock)
                             {
                                 if (heap[i].firstTag == Available)// && heap[i].lastTag == Thread.CurrentThread.ManagedThreadId)
                                 {
-                                    size++;
-                                    if (globalLockAcquired)
-                                    {
-                                        Monitor.Exit(globalLock); //exit global lock
-                                        globalLockAcquired = false;
-                                    }
-                                    heap[i].last = item;
-                                    heap[i].lastTag = Thread.CurrentThread.ManagedThreadId;
                                     if (comparer.Compare(heap[i].last, heap[i].first) < 0) //new element is smaller than the current min element
                                     {
                                         swapFirstWithLast(i, i);
@@ -788,15 +921,16 @@ namespace C5.concurrent
                         }
                     }
                 }
-                finally
+            }
+            finally
+            {
+                if (globalLockAcquired)
                 {
-                    if (globalLockAcquired)
-                    {
-                        Monitor.Exit(globalLock); //exit global lock
-                        globalLockAcquired = false;
-                    }
+                    Monitor.Exit(globalLock); //exit global lock
+                    globalLockAcquired = false;
                 }
             }
+
             if (bubbleupmax) //new element belongs to max heap
             {
                 bubbleUpMax(i); //bubble up new element from node i in max heap
