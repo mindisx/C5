@@ -35,7 +35,7 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 12 };
-            config.NumberOfElements = new[] { 10000, 100000, 1000000 };
+            config.NumberOfElements = new[] { 10000};
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -57,8 +57,8 @@ namespace Benchmark
             //config.PercentageDelete = new[] { 0, 10, 15, 40 };
             //config.Prefill = true;
 
-            config.GlobalLockDEPQ = true;
-            config.HuntLockDEPQv1 = false;
+            config.GlobalLockDEPQ = false;
+            config.HuntLockDEPQv1 = true;
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = true;
 
