@@ -39,9 +39,9 @@ namespace Benchmark
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
-            config.PercentageInsert = new[] { 0, 20, 35 };
-            config.PercentageDeleteMin = new[] { 0, 10, 15 };
-            config.PercentageDeleteMax = new[] { 0, 10, 15 };
+            config.PercentageInsert = new[] {20, 35 };
+            config.PercentageDeleteMin = new[] {10, 15 };
+            config.PercentageDeleteMax = new[] {10, 15 };
             config.Prefill = true;
 
             //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
@@ -163,8 +163,8 @@ namespace Benchmark
                     config.CurrentPercentageInsert = config.PercentageInsert[i];
                     config.CurrentPercentageDeleteMin = config.PercentageDeleteMin[i];
                     config.CurrentPercentageDeleteMax = config.PercentageDeleteMax[i];
-                    config.CurrentPercentageGetMin = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i]) / 2;
-                    config.CurrentPercentageGetMax = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i] - config.CurrentPercentageGetMin);
+                    //config.CurrentPercentageGetMin = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i]) / 2;
+                    //config.CurrentPercentageGetMax = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i] - config.CurrentPercentageGetMin);
 
 
                     string datafileName = timestamp + "-" + "datafile-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax + ".dat";
@@ -218,7 +218,7 @@ namespace Benchmark
 
                     datafile.Close();
 
-                    gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / " + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/");
+                    gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / "/* + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/"*/);
                     gnuPlotScript.Log("set terminal png truecolor size 800,600");
                     gnuPlotScript.Log("set xlabel \"Threads\"");
                     gnuPlotScript.Log("set ylabel \"Throughput\"");
@@ -392,22 +392,22 @@ namespace Benchmark
                     }
                     catch (Exception) { }
                 }
-                else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin - config.CurrentPercentageDeleteMax - config.CurrentPercentageGetMin))
-                {
-                    try
-                    {
-                        dictionary.FindMin();
-                    }
-                    catch (Exception) { }
-                }
-                else
-                {
-                    try
-                    {
-                        dictionary.FindMax();
-                    }
-                    catch (Exception) { }
-                }
+                //else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin - config.CurrentPercentageDeleteMax - config.CurrentPercentageGetMin))
+                //{
+                //    try
+                //    {
+                //        dictionary.FindMin();
+                //    }
+                //    catch (Exception) { }
+                //}
+                //else
+                //{
+                //    try
+                //    {
+                //        dictionary.FindMax();
+                //    }
+                //    catch (Exception) { }
+                //}
             }
             barrier.SignalAndWait();// Let main thread know we are done
         }
