@@ -34,7 +34,7 @@ namespace Benchmark
             // Create a config object and set the values
             // TEST RUN
             config.WarmupRuns = 2;
-            config.Threads = new[] { 1, 2, 4, 6, 12 };
+            config.Threads = new[] { 1, 2, 4, 6, 8 };
             config.NumberOfElements = new[] { 10000};
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
@@ -280,7 +280,7 @@ namespace Benchmark
                         if (steadyStateSize > r)
                             throw new Exception("Range of numbers is too small to reach steady state");
 
-                        Queue<int> threadQueue = generateRandomQueue(steadyStateSize, config.StartRangeRandom, config.EndRangeRandom);
+                        Queue<int> threadQueue = generateRandomQueue(steadyStateSize , config.StartRangeRandom, config.EndRangeRandom);
                         while (threadQueue.Count > 0)
                         {
                             int element = threadQueue.Dequeue();
