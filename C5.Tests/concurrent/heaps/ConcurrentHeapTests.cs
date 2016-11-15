@@ -38,7 +38,7 @@ namespace C5UnitTests.concurrent
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new HuntLockDEPQv2<int>(); }
+        public void Init() { queue = new SkipList<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
