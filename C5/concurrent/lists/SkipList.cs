@@ -65,16 +65,16 @@ namespace C5.concurrent
                 update[i] = x;
             }
 
-            int lvl = rng.Next(maxLevel);
+            int lvl = randomLevel();
             if (lvl > level)
             {
                 Node[] forwardTemp = header.forward;
                 header.forward = new Node[lvl + 1];
-                for (int i = level; i < forwardTemp.Length; i++)
+                for (int i = 0; i < forwardTemp.Length; i++)
                 {
                     header.forward[i] = forwardTemp[i];
                 }
-                for (int i = level; i <= lvl; i++)
+                for (int i = level + 1; i <= lvl; i++)
                 {
                     update[i] = header;
                 }
@@ -92,7 +92,16 @@ namespace C5.concurrent
 
         public SCG.IEnumerable<T> All()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                throw new NoSuchItemException();
+            T[] items = new T[size];
+            Node x = header;
+            for(int i = 0; i < size; i++)
+            {
+                x = x.forward[0];
+                items[i] = x.value;
+            }
+            return items;
         }
 
         public bool Check()
@@ -102,23 +111,39 @@ namespace C5.concurrent
 
         public T DeleteMax()
         {
-            throw new NotImplementedException();
+            Node[] update = new Node[maxLevel];
+            Node x = header;
+            T retval;
+            for (int i = level; i >= 0; i--)
+            {
+                while (x.forward[i] != null && x.forward[i].forward[i] != null)
+                    x = x.forward[i];
+                update[i] = x;
+            }
+
+            x = x.forward[0];
+            retval = x.value;
+
+            for (int i = 0; i < x.forward.Length; i++)
+            {
+                update[i].forward[i] = null;
+            }
+
+            size--;
+            return retval;
         }
 
         public T DeleteMin()
         {
             if (size == 0)
                 throw new NoSuchItemException();
-            T retval;
-            Node x = header.forward[1];
-            retval = x.value;
-            Node[] update = new Node[maxLevel];
-            for (int i = 0; i <= level; i++)
-                update[i] = header;
 
-            for (int i = 0; i <= x.forward.Length - 1; i++)
+            Node x = header.forward[0];
+            T retval = x.value;
+
+            for (int i = 0; i < x.forward.Length; i++)
             {
-                update[i].forward[i] = x.forward[i];
+                header.forward[i] = x.forward[i];
             }
             size--;
             return retval;
@@ -126,17 +151,36 @@ namespace C5.concurrent
 
         public T FindMax()
         {
-            throw new NotImplementedException();
+            Node x = header;
+            for (int i = level; i >= 0; i--)
+            {
+                while (x.forward[i] != null && x.forward[i].forward[i] != null)
+                    x = x.forward[i];
+            }
+            return x.forward[0].value;
         }
 
         public T FindMin()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                throw new NoSuchItemException();
+            return header.forward[0].value;
         }
 
         public bool IsEmpty()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                return true;
+            return false;
+        }
+
+        private int randomLevel()
+        {
+            int level = 0;
+            int p = 1;
+            while (rng.Next(2) < p && level < maxLevel)
+                level = level + 1;
+            return level;
         }
     }
 }
