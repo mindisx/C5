@@ -92,7 +92,16 @@ namespace C5.concurrent
 
         public SCG.IEnumerable<T> All()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                throw new NoSuchItemException();
+            T[] items = new T[size];
+            Node x = header;
+            for(int i = 0; i < size; i++)
+            {
+                x = x.forward[0];
+                items[i] = x.value;
+            }
+            return items;
         }
 
         public bool Check()
@@ -142,7 +151,13 @@ namespace C5.concurrent
 
         public T FindMax()
         {
-            throw new NotImplementedException();
+            Node x = header;
+            for (int i = level; i >= 0; i--)
+            {
+                while (x.forward[i] != null && x.forward[i].forward[i] != null)
+                    x = x.forward[i];
+            }
+            return x.forward[0].value;
         }
 
         public T FindMin()
@@ -154,25 +169,10 @@ namespace C5.concurrent
 
         public bool IsEmpty()
         {
-            throw new NotImplementedException();
+            if (size == 0)
+                return true;
+            return false;
         }
-
-
-        //private bool check(Node head)
-        //{
-        //    T prev = default(T);
-        //    Node x = head;
-        //    while(x != null)
-        //    {
-        //        prev = x.value;
-        //        x = x.forward[0];
-        //        if (x == null)
-        //            return true;
-        //        if (comparer.Compare(prev, x.value) > 0)
-        //            return false;
-
-        //    }
-        //}
 
         private int randomLevel()
         {
