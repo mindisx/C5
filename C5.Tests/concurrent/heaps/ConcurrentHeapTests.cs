@@ -103,50 +103,74 @@ namespace C5UnitTests.concurrent
             queue.Add(27);
             queue.Add(0);
             queue.Add(16);
-            Assert.AreEqual(9, queue.Count);
+            queue.Add(57);
+            Assert.AreEqual(10, queue.Count);
         }
 
         [Test]
+        [Repeat(1000)]
         public void RemoveMaxTest()
         {
             queue.Add(20);
             queue.Add(1);
             queue.Add(19);
+            queue.Add(100);
+            queue.Add(0);
             queue.Add(31);
             queue.Add(27);
             queue.Add(0);
             queue.Add(16);
+            queue.Add(57);
+            Assert.AreEqual(100, queue.DeleteMax());
+            Assert.AreEqual(57, queue.DeleteMax());
             Assert.AreEqual(31, queue.DeleteMax());
             Assert.AreEqual(27, queue.DeleteMax());
             Assert.AreEqual(20, queue.DeleteMax());
+            Assert.AreEqual(19, queue.DeleteMax());
         }
 
         [Test]
+        [Repeat(1000)]
         public void RemoveMinTest()
         {
             queue.Add(20);
             queue.Add(1);
             queue.Add(19);
+            queue.Add(100);
+            queue.Add(0);
             queue.Add(31);
             queue.Add(27);
             queue.Add(0);
             queue.Add(16);
+            queue.Add(57);
+            Assert.AreEqual(0, queue.DeleteMin());
             Assert.AreEqual(0, queue.DeleteMin());
             Assert.AreEqual(1, queue.DeleteMin());
             Assert.AreEqual(16, queue.DeleteMin());
+            Assert.AreEqual(19, queue.DeleteMin());
+            Assert.AreEqual(20, queue.DeleteMin());
         }
 
         [Test]
-        public void MillionInserts()
+        [Repeat (1000)]
+        public void ManyInserts()
         {
             Random rng = new Random();
-            for (int i = 0; i < 100; i++)
+            List<int> list = new List<int>();
+            int n = 10000;
+            for (int i = 0; i < n; i++)
             {
                 int ran = rng.Next(1000);
+                list.Add(ran);
                 queue.Add(ran);
             }
-            Assert.AreEqual(100, queue.Count);
-            queue.All();
+            Assert.AreEqual(n, queue.Count);
+            list = list.OrderByDescending(i => i).ToList();
+            foreach(int i in list)
+            {
+                Assert.AreEqual(i, queue.DeleteMax());
+            }
+            Assert.AreEqual(0, queue.Count);
         }
 
         [Test]
