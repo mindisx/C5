@@ -35,13 +35,13 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 10000};
+            config.NumberOfElements = new[] { 100000, 1000000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
-            config.PercentageInsert = new[] {20, 35 };
-            config.PercentageDeleteMin = new[] {10, 15 };
-            config.PercentageDeleteMax = new[] {10, 15 };
+            config.PercentageInsert = new[] { 20, 35 };
+            config.PercentageDeleteMin = new[] { 10, 15 };
+            config.PercentageDeleteMax = new[] { 10, 15 };
             config.Prefill = true;
 
             //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
@@ -57,10 +57,11 @@ namespace Benchmark
             //config.PercentageDelete = new[] { 0, 10, 15, 40 };
             //config.Prefill = true;
 
-            config.GlobalLockDEPQ = false;
-            config.HuntLockDEPQv1 = true;
+            config.GlobalLockDEPQ = true;
+            config.HuntLockDEPQv1 = false;
             config.HuntLockDEPQv2 = false;
-            config.HuntLockDEPQv3 = true;
+            config.HuntLockDEPQv3 = false;
+            config.GlobalLockSkipList = true;
 
 
             RunBenchmark();// Run the benchmark
@@ -216,6 +217,14 @@ namespace Benchmark
                         numberOfTests += 1;
                     }
 
+                    if (config.GlobalLockSkipList)
+                    {
+                        datafile.Log("\n\n" + "GlobalLockSkipList");
+                        new Benchmark().BenchMark(config, typeof(GlobalLockSkipList<int>));
+                        Console.WriteLine("GlobalLockSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
                     datafile.Close();
 
                     gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / "/* + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/"*/);
@@ -280,7 +289,7 @@ namespace Benchmark
                         if (steadyStateSize > r)
                             throw new Exception("Range of numbers is too small to reach steady state");
 
-                        Queue<int> threadQueue = generateRandomQueue(steadyStateSize , config.StartRangeRandom, config.EndRangeRandom);
+                        Queue<int> threadQueue = generateRandomQueue(steadyStateSize, config.StartRangeRandom, config.EndRangeRandom);
                         while (threadQueue.Count > 0)
                         {
                             int element = threadQueue.Dequeue();
@@ -580,6 +589,12 @@ namespace Benchmark
             set;
         }
 
+        public bool GlobalLockSkipList
+        {
+            get;
+            set;
+        }
+
         public int WarmupRuns
         {
             get;
@@ -611,5 +626,6 @@ namespace Benchmark
         }
 
         public long ExecutionTime { get; set; }
+
     }
 }

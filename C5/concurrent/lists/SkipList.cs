@@ -40,10 +40,8 @@ namespace C5.concurrent
             level = 1;
             header = new Node(maxLevel, default(T));
             random = new Random();
-
         }
     
-
 
         public int Count { get { return size; } }
 
