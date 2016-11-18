@@ -2,7 +2,6 @@
 using SCG = System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using C5.concurrent.skiplist;
 
 namespace C5.concurrent
 {
