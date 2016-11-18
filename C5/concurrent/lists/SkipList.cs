@@ -2,19 +2,21 @@
 using SCG = System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using C5.concurrent.skiplist;
 
 namespace C5.concurrent
 {
-    class SkipList<T> : IConcurrentPriorityQueue<T>
+    public class SkipList<T> : IConcurrentPriorityQueue<T>
     {
-        internal class Node
+        public class Node
         {
-            internal Node[] forward;
-            internal T value;
-            public Node(int level, T value)
+            //An array the size of the "height" of the node, holds pointers to nodes on the seperate levels. 
+            public Node[] forward;
+            public T value;
+            public Node(int level, T newValue)
             {
-                this.forward = new Node[level + 1];
-                this.value = value;
+                forward = new Node[level];
+                value = newValue;
             }
             public override string ToString()
             {
@@ -26,82 +28,73 @@ namespace C5.concurrent
         SCG.IEqualityComparer<T> itemEquelityComparer;
         int size, maxLevel, level;
         Node header;
-        Random rng;
+        Random random;
 
         public SkipList() : this(32) { }
 
-        public SkipList(int maxlevel)
+        public SkipList(int max)
         {
-            this.comparer = SCG.Comparer<T>.Default;
-            this.itemEquelityComparer = SCG.EqualityComparer<T>.Default;
-            header = null;
-            int max = 1;
-            while (max < maxlevel)
-                max <<= 1;
+            comparer = SCG.Comparer<T>.Default;
+            itemEquelityComparer = SCG.EqualityComparer<T>.Default;
             maxLevel = max;
-            level = 0;
-            header = new Node(0, default(T));
-            rng = new Random();
+            size = 0;
+            level = 1;
+            header = new Node(maxLevel, default(T));
+            random = new Random();
+
         }
+    
 
 
-        public int Count
-        {
-            get
-            {
-                return size;
-            }
-        }
+        public int Count { get { return size; } }
 
         public bool Add(T item)
         {
             Node[] update = new Node[maxLevel];
             Node x = header;
-
             for (int i = level; i >= 0; i--)
             {
                 while (x.forward[i] != null && comparer.Compare(x.forward[i].value, item) < 0)
+                {
                     x = x.forward[i];
+                }
                 update[i] = x;
             }
-
-            int lvl = randomLevel();
-            if (lvl > level)
+            int newLevel = RandomLevel();
+            if (newLevel > level)
             {
-                Node[] forwardTemp = header.forward;
-                header.forward = new Node[lvl + 1];
-                for (int i = 0; i < forwardTemp.Length; i++)
-                {
-                    header.forward[i] = forwardTemp[i];
-                }
-                for (int i = level + 1; i <= lvl; i++)
+                for (int i = level; i < newLevel; i++)
                 {
                     update[i] = header;
                 }
-                level = lvl;
+                level = newLevel;
             }
-            x = new Node(lvl, item);
-            for (int i = 0; i <= lvl; i++)
+            x = new Node(newLevel, item);
+            for (int i = 0; i < newLevel; i++)
             {
                 x.forward[i] = update[i].forward[i];
                 update[i].forward[i] = x;
             }
             size++;
             return true;
+
         }
 
         public SCG.IEnumerable<T> All()
         {
             if (size == 0)
                 throw new NoSuchItemException();
-            T[] items = new T[size];
+
             Node x = header;
-            for(int i = 0; i < size; i++)
+            T[] elements = new T[size];
+            int i = 0;
+            while (x.forward[0] != null)
             {
+                elements[i] = x.forward[0].value;
                 x = x.forward[0];
-                items[i] = x.value;
+                i++;
             }
-            return items;
+            return elements;
         }
 
         public bool Check()
@@ -111,6 +104,9 @@ namespace C5.concurrent
 
         public T DeleteMax()
         {
+            if (size == 0)
+                throw new NoSuchItemException();
+
             Node[] update = new Node[maxLevel];
             Node x = header;
             T retval;
@@ -151,6 +147,9 @@ namespace C5.concurrent
 
         public T FindMax()
         {
+            if (size == 0)
+                throw new NoSuchItemException();
+
             Node x = header;
             for (int i = level; i >= 0; i--)
             {
@@ -174,13 +173,14 @@ namespace C5.concurrent
             return false;
         }
 
-        private int randomLevel()
+        private int RandomLevel()
         {
-            int level = 0;
-            int p = 1;
-            while (rng.Next(2) < p && level < maxLevel)
-                level = level + 1;
-            return level;
+            var lvl = 1;
+            while (random.Next(2) == 1 && lvl < maxLevel)
+            {
+                lvl++;
+            }
+            return lvl;
         }
     }
 }
