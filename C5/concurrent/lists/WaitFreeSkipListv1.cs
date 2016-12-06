@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace C5.concurrent
 {
-    public class WaitFreeSkipListv2<T> : IConcurrentPriorityQueue<T>
+    public class WaitFreeSkipListv1<T> : IConcurrentPriorityQueue<T>
     {
 
         internal class Node
@@ -36,9 +36,9 @@ namespace C5.concurrent
         Node header, tail;
         Random rng;
 
-        public WaitFreeSkipListv2() : this(32) { }
+        public WaitFreeSkipListv1() : this(32) { }
 
-        public WaitFreeSkipListv2(int maxlevel)
+        public WaitFreeSkipListv1(int maxlevel)
         {
             this.comparer = SCG.Comparer<T>.Default;
             this.itemEquelityComparer = SCG.EqualityComparer<T>.Default;
