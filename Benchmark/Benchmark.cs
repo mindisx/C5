@@ -35,7 +35,7 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 100000, 1000000 };
+            config.NumberOfElements = new[] { 10000};
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -62,6 +62,7 @@ namespace Benchmark
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = false;
             config.GlobalLockSkipList = true;
+            config.WaitFreeSkipList = true;
 
 
             RunBenchmark();// Run the benchmark
@@ -222,6 +223,15 @@ namespace Benchmark
                         datafile.Log("\n\n" + "GlobalLockSkipList");
                         new Benchmark().BenchMark(config, typeof(GlobalLockSkipList<int>));
                         Console.WriteLine("GlobalLockSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
+
+                    if (config.WaitFreeSkipList)
+                    {
+                        datafile.Log("\n\n" + "WaitFreeSkipList");
+                        new Benchmark().BenchMark(config, typeof(WaitFreeSkipListv2<int>));
+                        Console.WriteLine("WaitFreeSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
@@ -594,6 +604,11 @@ namespace Benchmark
             get;
             set;
         }
+        public bool WaitFreeSkipList
+        {
+            get;
+            set;
+        }
 
         public int WarmupRuns
         {
@@ -626,6 +641,5 @@ namespace Benchmark
         }
 
         public long ExecutionTime { get; set; }
-
     }
 }
