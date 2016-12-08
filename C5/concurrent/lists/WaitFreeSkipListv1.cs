@@ -11,10 +11,10 @@ namespace C5.concurrent
 
         internal class Node
         {
+            internal object nodeLock = new object();
             internal Node[] forward;
             internal T value;
             internal bool marked;
-            internal object nodeLock = new object();
             internal int pid = 0;
             internal bool tail = false;
             public Node(int level, T value)
@@ -47,11 +47,14 @@ namespace C5.concurrent
             while (max < maxlevel)
                 max <<= 1;
             maxLevel = max;
-            tail = new Node(-1, default(T));
+            tail = new Node(maxLevel - 1, default(T));
             tail.tail = true;
-            header = new Node(maxlevel - 1, default(T));
-            for (int i = 0; i < header.forward.Length; i++)
+            header = new Node(maxLevel - 1, default(T));
+            for (int i = 0; i < maxLevel; i++)
+            {
                 header.forward[i] = tail;
+                tail.forward[i] = tail;
+            }
             rng = new Random();
         }
 
@@ -64,123 +67,11 @@ namespace C5.concurrent
             }
         }
 
-        public bool Add(T item)
-        {
-            int lvl = randomLevel();
-            bool initialinsert = false;
-            Node n = new Node(0, item);
-            for (int l = 0; l <= lvl; l++)
-            {
-                bool levelinsert = false;
-                while (true)
-                {
-                    Node x = header;
-                    Node[] preds = new Node[maxLevel], succs = new Node[maxLevel];
-                    try
-                    {
-                        if (!initialinsert)
-                        {
-                            for (int i = maxLevel - 1; i >= 0; i--)
-                            {
-                                while (!x.forward[i].tail && comparer.Compare(x.forward[i].value, item) <= 0)
-                                    x = x.forward[i];
-                                preds[i] = x;
-                                succs[i] = x.forward[i];
-                            }
-                        }
-                        else
-                        {
-                            for (int i = maxLevel - 1; i >= 0; i--)
-                            {
-                                while (!x.forward[i].tail && comparer.Compare(x.forward[i].value, item) < 0)
-                                    x = x.forward[i];
-                                preds[i] = x;
-                                succs[i] = x.forward[i];
-                            }
-
-                            Node npred = preds[l];
-                            x = preds[l - 1];
-                            while (!n.marked && !n.Equals(x.forward[l - 1]))
-                            {
-                                x = x.forward[l - 1];
-                                if (x.forward.Length - 1 >= l)
-                                    npred = x;
-                            }
-                            preds[l] = npred;
-                            succs[l] = npred.forward[l];
-                        }
-                    }
-                    catch (IndexOutOfRangeException e)
-                    {
-                        continue;
-                    }
-                    lock (preds[l].nodeLock)
-                    {
-                        lock (n.nodeLock)
-                        {
-                            if (n.tail)
-                                continue;
-                            if (n.marked)
-                                return true;
-                            if (Validate(preds[l], succs[l], l, item))
-                            {
-                                if (n.forward.Length - 1 < l)
-                                {
-                                    Node[] newfor = new Node[l + 1];
-                                    for (int i = 0; i < n.forward.Length; i++)
-                                    {
-                                        newfor[i] = n.forward[i];
-                                    }
-                                    Interlocked.Exchange(ref newfor[l], preds[l].forward[l]);
-                                    Interlocked.Exchange(ref n.forward, newfor);
-                                }
-                                Interlocked.Exchange(ref n.forward[l], preds[l].forward[l]);
-                                Interlocked.Exchange(ref preds[l].forward[l], n);
-                                levelinsert = true;
-                                if (l == 0)
-                                {
-                                    Interlocked.Increment(ref size);
-                                    initialinsert = true;
-                                }
-                            }
-                        }
-                    }
-                    if (levelinsert)
-                        break; //continue with next level
-                }
-            }
-            return true;
-        }
-
-        private bool Validate(Node pred, Node curr, int level, T item)
-        {
-            if (!curr.tail && comparer.Compare(curr.value, item) < 0)
-                return false;
-            if (!pred.marked && comparer.Compare(pred.value, item) <= 0 && !curr.marked && pred.forward[level].Equals(curr))
-                return true;
-            if (!pred.marked && comparer.Compare(pred.value, item) <= 0 && pred.forward[level].Equals(curr))
-                return true;
-            return false;
-        }
-
-        private bool ValidateUnmarked(Node pred, Node curr, int level)
-        {
-            if (!pred.marked && !curr.tail && curr.pid == 0 && !curr.marked && curr.Equals(pred.forward[level]))
-                return true;
-            return false;
-        }
-        private bool ValidateMarked(Node pred, Node curr, int level)
-        {
-            if (!pred.marked && !curr.tail && !pred.forward[level].tail && pred.forward[level].Equals(curr))
-                return true;
-            return false;
-        }
-
-
         public SCG.IEnumerable<T> All()
         {
             throw new NotImplementedException();
         }
+
         public bool Check()
         {
             if (size == 0)
@@ -201,125 +92,176 @@ namespace C5.concurrent
             return true;
         }
 
+        public bool Add(T item)
+        {
+            int lvl = randomLevel();
+            bool initialinsert = false;
+            Node curr = new Node(0, item);
+            for (int l = 0; l <= lvl; l++)
+            {
+                bool levelinsert = false;
+                while (true)
+                {
+                    if (curr.marked)
+                        return true;
+                    Node x = header;
+                    Node[] preds = new Node[maxLevel], succs = new Node[maxLevel];
+                    if (!initialinsert)
+                    {
+                        for (int i = maxLevel - 1; i >= 0; i--)
+                        {
+                            while (!x.forward[i].tail && comparer.Compare(x.forward[i].value, item) <= 0)
+                                x = x.forward[i];
+                            preds[i] = x;
+                            succs[i] = x.forward[i];
+                        }
+                    }
+                    else
+                    {
+                        Node next;
+                        for (int i = maxLevel - 1; i >= 0; i--)
+                        {
+                            while (!(next = x.forward[i]).tail && comparer.Compare(next.value, item) < 0)
+                                x = next;
+                            preds[i] = x;
+                            succs[i] = x.forward[i];
+                        }
+                       
+                        x = preds[l - 1];
+                        if (x.tail) continue;
+                        while (!curr.marked && !(next = x.forward[l - 1]).tail && !curr.Equals(next))
+                        {
+                            x = next;
+                            if (x.tail || curr.Equals(x)) continue;
+                            if (x.forward.Length - 1 >= l)
+                            {
+                                preds[l] = x;
+                                succs[l] = x.forward[l];
+                            }
+                        }
+                    }
+                    lock (preds[l].nodeLock)
+                    {
+                        if (preds[l].tail)
+                            continue;
+                        lock (curr.nodeLock)
+                        {
+                            if (curr.marked) return true;
+                            if (curr.tail) continue;
+                            if (Validate(preds[l], succs[l], l, item))
+                            {
+                                Node[] newfor = new Node[l + 1];
+                                for (int i = 0; i < curr.forward.Length; i++)
+                                    newfor[i] = curr.forward[i];
+                                Interlocked.Exchange(ref newfor[l], succs[l]);
+                                Interlocked.Exchange(ref curr.forward, newfor);
+                                Interlocked.Exchange(ref preds[l].forward[l], curr);
+                                levelinsert = true;
+                                if (l == 0)
+                                {
+                                    Interlocked.Increment(ref size);
+                                    initialinsert = true;
+                                }
+                            }
+                        }
+                    }
+                    if (levelinsert) break; //continue with next level
+                }
+            }
+            return true;
+        }
         public T DeleteMax()
         {
             if (header.forward[0].tail)
                 throw new NoSuchItemException();
             T retval = default(T);
             bool initialdelete = false;
-            int lvl = int.MaxValue, currlvl = int.MaxValue;
-            Node n = null;
+            int l = int.MaxValue, currlvl = int.MaxValue;
+            Node curr = null;
             while (true)
             {
-
+                if (header.forward[0].tail)
+                    throw new NoSuchItemException();
                 Node x = header;
                 Node[] preds = new Node[maxLevel];
-                try
+                if (!initialdelete)
                 {
-                    if (!initialdelete)
+                    for (int i = maxLevel - 1; i >= 0; i--)
                     {
-                        for (int i = maxLevel - 1; i >= 0; i--)
-                        {
-                            while (!x.forward[i].tail && !x.forward[i].forward[i].tail)
-                                x = x.forward[i];
-                            preds[i] = x;
-                        }
-                    }
-                    else
-                    {
-                        for (int i = maxLevel - 1; i >= 0; i--)
-                        {
-                            while (!x.forward[i].tail && !x.forward[i].forward[i].tail && comparer.Compare(x.forward[i].value, retval) < 0)
-                                x = x.forward[i];
-                            preds[i] = x;
-                        }
-                        Node npred = preds[lvl];
-                        x = preds[lvl];
-
-                        while (!x.forward[lvl].tail && !n.Equals(x.forward[lvl]))
-                        {
-                            x = x.forward[lvl];
-                            if (x.forward.Length - 1 >= lvl)
-                                npred = x;
-                        }
-                        preds[lvl] = npred;
-                    }
-
-                    if (!initialdelete)
-                    {
-                        lock (preds[0].nodeLock)
-                        {
-                            n = preds[0].forward[0];
-                            lock (n.nodeLock)
-                            {
-                                if (n.tail)
-                                    continue;
-
-                                if (!n.tail && !n.marked && n.pid == 0 && ValidateUnmarked(preds[0], n, 0))
-                                {
-                                    retval = n.value;
-                                    n.pid = Thread.CurrentThread.ManagedThreadId;
-                                    n.marked = true;
-                                    lvl = n.forward.Length - 1;
-                                    initialdelete = true;
-                                }
-                                else
-                                    continue;
-                            }
-                        }
+                        while (!x.forward[i].tail && !x.forward[i].forward[i].tail)
+                            x = x.forward[i];
+                        preds[i] = x;
                     }
                 }
-                catch (IndexOutOfRangeException e)
+                else
                 {
-                    continue;
+                    Node next;
+                    for (int i = maxLevel - 1; i >= 0; i--)
+                    {
+                        while (!(next = x.forward[i]).tail && comparer.Compare(next.value, retval) < 0)
+                            x = next;
+                        preds[i] = x;
+                    }
+
+                    x = preds[l];
+                    if (x.tail) continue;
+                    while (!(next = x.forward[l]).tail && !next.Equals(curr))
+                    {
+                        x = next;
+                        if (x.tail || curr.Equals(x)) continue;
+                        if (x.forward.Length - 1 >= l)
+                            preds[l] = x;
+                    }
                 }
 
-                lock (preds[lvl].nodeLock)
+                if (!initialdelete)
                 {
-                    if (preds[lvl].tail)
-                        continue;
-                    lock (n.nodeLock)
+                    lock (preds[0].nodeLock)
                     {
-                        if (n.tail)
-                            continue;
-                        if (!initialdelete)
+                        if (preds[0].tail) continue;
+                        curr = preds[0].forward[0];
+                        lock (curr.nodeLock)
                         {
-                            if (!n.tail && n.marked && n.pid == Thread.CurrentThread.ManagedThreadId && ValidateMarked(preds[lvl], n, lvl))
+                            if (curr.tail) continue;
+                            if (ValidateUnmarked(preds[0], curr, 0))
                             {
-                                Interlocked.Exchange(ref preds[lvl].forward[lvl], n.forward[lvl]);
-                                lvl--;
-                                currlvl = lvl;
+                                curr.marked = true;
+                                curr.pid = Thread.CurrentThread.ManagedThreadId;
+                                initialdelete = true;
+                                l = curr.forward.Length - 1;
+                                retval = curr.value;
                             }
                             else
                                 continue;
+                        }
+                    }
+                }
+
+                lock (preds[l].nodeLock)
+                {
+                    if (preds[l].tail) continue;
+                    lock (curr.nodeLock)
+                    {
+                        if (curr.tail) continue;
+                        if (curr.marked && curr.pid == Thread.CurrentThread.ManagedThreadId && ValidateMarked(preds[l], curr, l))
+                        {
+                            Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
+                            currlvl = --l;
                         }
                         else
-                        {
-                            if (!n.tail && n.marked && n.pid == Thread.CurrentThread.ManagedThreadId && ValidateMarked(preds[lvl], n, lvl))
-                            {
-                                Interlocked.Exchange(ref preds[lvl].forward[lvl], n.forward[lvl]);
-                                lvl--;
-                                currlvl = lvl;
-                            }
-                            else
-                                continue;
-                        }
+                            continue;
                     }
                 }
                 if (currlvl == -1)
                     break;
             }
-
             Interlocked.Decrement(ref size);
             return retval;
         }
 
         public T DeleteMin()
         {
-
-            if (header.forward[0].tail)
-                throw new NoSuchItemException();
-            T retavl;
+            T retavl = default(T);
             int currlvl = int.MaxValue;
             while (true)
             {
@@ -331,11 +273,11 @@ namespace C5.concurrent
                     {
                         if (curr.tail)
                             throw new NoSuchItemException();
-                        retavl = curr.value;
                         if (ValidateUnmarked(header, curr, 0))
                         {
                             curr.marked = true;
                             curr.pid = Thread.CurrentThread.ManagedThreadId;
+                            retavl = curr.value;
                             for (int i = curr.forward.Length - 1; i >= 0; i--)
                             {
                                 Interlocked.Exchange(ref pred.forward[i], curr.forward[i]);
@@ -353,26 +295,25 @@ namespace C5.concurrent
 
         public T FindMax()
         {
-            if (header.forward[0] == null)
+            if (header.forward[0].tail)
                 throw new NotImplementedException();
 
             Node x = header;
-            while (x.forward[0] != null && x.forward[0].forward[0] != null)
+            while (!x.forward[0].tail && !x.forward[0].forward[0].tail)
                 x = x.forward[0];
             return x.forward[0].value;
         }
 
         public T FindMin()
         {
-            if (header.forward[0] == null)
+            if (header.forward[0].tail)
                 throw new NoSuchItemException();
-
             return header.forward[0].value;
         }
 
         public bool IsEmpty()
         {
-            if (header.forward[0] == null)
+            if (header.forward[0].tail)
                 return true;
             return false;
         }
@@ -384,6 +325,29 @@ namespace C5.concurrent
             while (rng.Next(2) < p && level < maxLevel - 1)
                 level = level + 1;
             return level;
+        }
+
+        private bool Validate(Node pred, Node succ, int level, T item)
+        {
+            if (succ.tail && !pred.marked && pred.forward[level].Equals(succ) && comparer.Compare(pred.value, item) <= 0)
+                return true;
+            if (!succ.tail && !pred.marked && !succ.marked && pred.forward[level].Equals(succ) &&
+                comparer.Compare(pred.value, item) <= 0 && comparer.Compare(succ.value, item) >= 0)
+                return true;
+            return false;
+        }
+
+        private bool ValidateUnmarked(Node pred, Node succ, int level)
+        {
+            if (!succ.tail && !pred.marked && !succ.marked && pred.forward[level].Equals(succ))
+                return true;
+            return false;
+        }
+        private bool ValidateMarked(Node pred, Node succ, int level)
+        {
+            if (!succ.tail && !pred.marked && pred.forward[level].Equals(succ))
+                return true;
+            return false;
         }
     }
 }
