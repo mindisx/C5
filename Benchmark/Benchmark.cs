@@ -35,7 +35,7 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 10000};
+            config.NumberOfElements = new[] {10000, 50000};
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -57,12 +57,13 @@ namespace Benchmark
             //config.PercentageDelete = new[] { 0, 10, 15, 40 };
             //config.Prefill = true;
 
-            config.GlobalLockDEPQ = true;
+            config.GlobalLockDEPQ = false;
             config.HuntLockDEPQv1 = false;
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = false;
             config.GlobalLockSkipList = true;
-            config.WaitFreeSkipList = true;
+            config.HellerSkipListv1 = true;
+            config.HellerSkipListv2 = true;
 
 
             RunBenchmark();// Run the benchmark
@@ -165,8 +166,8 @@ namespace Benchmark
                     config.CurrentPercentageInsert = config.PercentageInsert[i];
                     config.CurrentPercentageDeleteMin = config.PercentageDeleteMin[i];
                     config.CurrentPercentageDeleteMax = config.PercentageDeleteMax[i];
-                    //config.CurrentPercentageGetMin = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i]) / 2;
-                    //config.CurrentPercentageGetMax = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i] - config.CurrentPercentageGetMin);
+                    config.CurrentPercentageGetMin = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i]) / 2;
+                    config.CurrentPercentageGetMax = (100 - config.PercentageInsert[i] - config.PercentageDeleteMax[i] - config.PercentageDeleteMax[i] - config.CurrentPercentageGetMin);
 
 
                     string datafileName = timestamp + "-" + "datafile-" + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax + ".dat";
@@ -227,17 +228,26 @@ namespace Benchmark
                         numberOfTests += 1;
                     }
 
-                    if (config.WaitFreeSkipList)
+                    if (config.HellerSkipListv1)
                     {
-                        datafile.Log("\n\n" + "WaitFreeSkipList");
-                        new Benchmark().BenchMark(config, typeof(WaitFreeSkipListv2<int>));
-                        Console.WriteLine("WaitFreeSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        datafile.Log("\n\n" + "HellerSkipListv1");
+                        new Benchmark().BenchMark(config, typeof(HellerSkipListv1<int>));
+                        Console.WriteLine("HellerSkipListv1 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
+
+                    if (config.HellerSkipListv2)
+                    {
+                        datafile.Log("\n\n" + "HellerSkipListv2");
+                        new Benchmark().BenchMark(config, typeof(HellerSkipListv2<int>));
+                        Console.WriteLine("HellerSkipListv2 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
                     datafile.Close();
 
-                    gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / "/* + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/"*/);
+                    gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / " + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/");
                     gnuPlotScript.Log("set terminal png truecolor size 800,600");
                     gnuPlotScript.Log("set xlabel \"Threads\"");
                     gnuPlotScript.Log("set ylabel \"Throughput\"");
@@ -401,7 +411,7 @@ namespace Benchmark
                     {
                         dictionary.DeleteMin();
                     }
-                    catch (Exception) { }
+                    catch (NoSuchItemException) { }
                 }
                 else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin - config.CurrentPercentageDeleteMax))
                 {
@@ -409,24 +419,24 @@ namespace Benchmark
                     {
                         dictionary.DeleteMax();
                     }
+                    catch (NoSuchItemException e) { }
+                }
+                else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin - config.CurrentPercentageDeleteMax - config.CurrentPercentageGetMin))
+                {
+                    try
+                    {
+                        dictionary.FindMin();
+                    }
                     catch (Exception) { }
                 }
-                //else if (option >= (100 - config.CurrentPercentageInsert - config.CurrentPercentageDeleteMin - config.CurrentPercentageDeleteMax - config.CurrentPercentageGetMin))
-                //{
-                //    try
-                //    {
-                //        dictionary.FindMin();
-                //    }
-                //    catch (Exception) { }
-                //}
-                //else
-                //{
-                //    try
-                //    {
-                //        dictionary.FindMax();
-                //    }
-                //    catch (Exception) { }
-                //}
+                else
+                {
+                    try
+                    {
+                        dictionary.FindMax();
+                    }
+                    catch (Exception) { }
+                }
             }
             barrier.SignalAndWait();// Let main thread know we are done
         }
@@ -604,7 +614,13 @@ namespace Benchmark
             get;
             set;
         }
-        public bool WaitFreeSkipList
+        public bool HellerSkipListv1
+        {
+            get;
+            set;
+        }
+
+        public bool HellerSkipListv2
         {
             get;
             set;
