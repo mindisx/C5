@@ -8,6 +8,7 @@ namespace C5.concurrent
     public class GlobalLockSkipList<T> : IConcurrentPriorityQueue<T>
     {
         private static readonly object globalLock = new object();
+
         internal class Node
         {
             internal Node[] forward;
@@ -41,7 +42,7 @@ namespace C5.concurrent
                 max <<= 1;
             maxLevel = max;
             level = 0;
-            header = new Node(0, default(T));
+            header = new Node(maxLevel, default(T));
             rng = new Random();
         }
 
@@ -61,39 +62,40 @@ namespace C5.concurrent
         {
             lock (globalLock)
             {
-                Node[] update = new Node[maxLevel];
-                Node x = header;
+                try
+                {
+                    Node[] update = new Node[maxLevel];
+                    Node x = header;
 
-                for (int i = level; i >= 0; i--)
-                {
-                    while (x.forward[i] != null && comparer.Compare(x.forward[i].value, item) < 0)
-                        x = x.forward[i];
-                    update[i] = x;
-                }
+                    for (int i = level; i >= 0; i--)
+                    {
+                        while (x.forward[i] != null && comparer.Compare(x.forward[i].value, item) < 0)
+                            x = x.forward[i];
+                        update[i] = x;
+                    }
 
-                int lvl = randomLevel();
-                if (lvl > level)
-                {
-                    Node[] forwardTemp = header.forward;
-                    header.forward = new Node[lvl + 1];
-                    for (int i = 0; i < forwardTemp.Length; i++)
+                    int lvl = randomLevel();
+                    if (lvl > level)
                     {
-                        header.forward[i] = forwardTemp[i];
+                        for (int i = level + 1; i <= lvl; i++)
+                        {
+                            update[i] = header;
+                        }
+                        level = lvl;
                     }
-                    for (int i = level + 1; i <= lvl; i++)
+                    x = new Node(lvl, item);
+                    for (int i = 0; i <= lvl; i++)
                     {
-                        update[i] = header;
+                        x.forward[i] = update[i].forward[i];
+                        update[i].forward[i] = x;
                     }
-                    level = lvl;
+                    size++;
+                    return true;
                 }
-                x = new Node(lvl, item);
-                for (int i = 0; i <= lvl; i++)
+                catch (Exception e)
                 {
-                    x.forward[i] = update[i].forward[i];
-                    update[i].forward[i] = x;
+                    throw e;
                 }
-                size++;
-                return true;
             }
         }
 
@@ -123,25 +125,32 @@ namespace C5.concurrent
         {
             lock (globalLock)
             {
-                Node[] update = new Node[maxLevel];
-                Node x = header;
-                T retval;
-                for (int i = level; i >= 0; i--)
+                try
                 {
-                    while (x.forward[i] != null && x.forward[i].forward[i] != null)
-                        x = x.forward[i];
-                    update[i] = x;
-                }
+                    Node[] update = new Node[maxLevel];
+                    Node x = header;
+                    T retval;
+                    for (int i = level; i >= 0; i--)
+                    {
+                        while (x.forward[i] != null && x.forward[i].forward[i] != null)
+                            x = x.forward[i];
+                        update[i] = x;
+                    }
 
-                x = x.forward[0];
-                retval = x.value;
-                for (int i = 0; i < x.forward.Length; i++)
+                    x = x.forward[0];
+                    retval = x.value;
+                    for (int i = 0; i < x.forward.Length; i++)
+                    {
+                        update[i].forward[i] = null;
+                    }
+
+                    size--;
+                    return retval;
+                }
+                catch (Exception e)
                 {
-                    update[i].forward[i] = null;
+                    throw e;
                 }
-
-                size--;
-                return retval;
             }
         }
 
@@ -149,18 +158,25 @@ namespace C5.concurrent
         {
             lock (globalLock)
             {
-                if (size == 0)
-                    throw new NoSuchItemException();
-
-                Node x = header.forward[0];
-                T retval = x.value;
-
-                for (int i = 0; i < x.forward.Length; i++)
+                try
                 {
-                    header.forward[i] = x.forward[i];
+                    if (size == 0)
+                        throw new NoSuchItemException();
+
+                    Node x = header.forward[0];
+                    T retval = x.value;
+
+                    for (int i = 0; i < x.forward.Length; i++)
+                    {
+                        header.forward[i] = x.forward[i];
+                    }
+                    size--;
+                    return retval;
                 }
-                size--;
-                return retval;
+                catch (Exception e)
+                {
+                    throw e;
+                }
             }
         }
 
