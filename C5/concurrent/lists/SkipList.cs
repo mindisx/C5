@@ -7,7 +7,7 @@ namespace C5.concurrent
 {
     public class SkipList<T> : IConcurrentPriorityQueue<T>
     {
-        public class Node
+        internal class Node
         {
             //An array the size of the "height" of the node, holds pointers to nodes on the seperate levels. 
             public Node[] forward;
@@ -41,7 +41,7 @@ namespace C5.concurrent
             header = new Node(maxLevel, default(T));
             random = new Random();
         }
-    
+
 
         public int Count { get { return size; } }
 
@@ -52,15 +52,13 @@ namespace C5.concurrent
             for (int i = level; i >= 0; i--)
             {
                 while (x.forward[i] != null && comparer.Compare(x.forward[i].value, item) < 0)
-                {
                     x = x.forward[i];
-                }
                 update[i] = x;
             }
             int newLevel = RandomLevel();
             if (newLevel > level)
             {
-                for (int i = level; i < newLevel; i++)
+                for (int i = level+1; i < newLevel; i++)
                 {
                     update[i] = header;
                 }
