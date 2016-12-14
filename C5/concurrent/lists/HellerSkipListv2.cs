@@ -147,38 +147,51 @@ namespace C5.concurrent
                         }
                         if (hittail) continue;
                     }
-
-                    lock (preds[l].nodeLock)
+                    bool breaking = false;
+                    for (int ll = l; ll <= lvl; ll++)
                     {
-                        Node pred = preds[l];
-                        if (pred.tail) continue;
-                        lock (curr.nodeLock)
+                        lock (preds[ll].nodeLock)
                         {
-                            if (curr.marked) return true;
-                            for (int ll = l; ll < pred.forward.Length; ll++)
+                            Node pred = preds[ll];
+                            if (pred.tail) break;
+                            lock (curr.nodeLock)
                             {
-                                if (ll <= lvl)
+                                if (curr.marked) return true;
+                                for (int lll = ll; lll < pred.forward.Length; lll++)
                                 {
-                                    if (Validate(pred, succs[l], l, item))
+                                    if (lll <= lvl)
                                     {
-                                        l = ll;
-                                        Node[] newfor = new Node[l + 1];
-                                        for (int i = 0; i < curr.forward.Length; i++)
-                                            newfor[i] = curr.forward[i];
-                                        Interlocked.Exchange(ref newfor[l], succs[l]);
-                                        Interlocked.Exchange(ref curr.forward, newfor);
-                                        Interlocked.Exchange(ref pred.forward[l], curr);
-                                        levelInsert = true;
-                                        curr.level = l;
-                                        if (l == 0)
+                                        if (Validate(pred, succs[l], l, item))
                                         {
-                                            Interlocked.Increment(ref size);
-                                            initialInsert = true;
+                                            l = ll = lll;
+                                            Node[] newfor = new Node[l + 1];
+                                            for (int i = 0; i < curr.forward.Length; i++)
+                                                newfor[i] = curr.forward[i];
+                                            Interlocked.Exchange(ref newfor[l], succs[l]);
+                                            Interlocked.Exchange(ref curr.forward, newfor);
+                                            Interlocked.Exchange(ref pred.forward[l], curr);
+                                            levelInsert = true;
+                                            curr.level = l;
+                                            if (l == 0)
+                                            {
+                                                Interlocked.Increment(ref size);
+                                                initialInsert = true;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            breaking = true;
+                                            break;
                                         }
                                     }
-                                    else break;
+                                    else
+                                    {
+                                        breaking = true;
+                                        break;
+                                    }
                                 }
-                                else break;
+                                if (breaking)
+                                    break;
                             }
                         }
                     }
@@ -223,39 +236,51 @@ namespace C5.concurrent
 
                     }
                 }
-
-                lock (preds[l].nodeLock)
+                bool breaking = false;
+                for (int ll = l; ll >= 0; ll--)
                 {
-                    if (preds[l].tail || preds[l].level < 0)
+                    lock (preds[l].nodeLock)
                     {
-                        curr = null;
-                        continue;
-                    }
-                    lock (curr.nodeLock)
-                    {
-                        if (curr.tail || !curr.forward[0].tail || curr.level < 0 || curr.level != l)
+                        if (preds[l].tail || preds[l].level < 0)
                         {
                             curr = null;
-                            continue;
+                            break;
                         }
-                        while (true)
+                        lock (curr.nodeLock)
                         {
-                            if (ValidatePred(preds[l], curr, l) && curr.Equals(succs[l]))
+                            if (curr.tail || !curr.forward[0].tail || curr.level < 0 || curr.level != l)
                             {
-                                curr.marked = true;
-                                Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
-                                curr.level = --l;
-                                if (l == -1)
-                                {
-                                    Interlocked.Decrement(ref size);
-                                    return curr.value;
-                                }
-                                if (!preds[l + 1].Equals(preds[l])) break;
-
+                                curr = null;
+                                break;
                             }
-                            else break;
+                            while (true)
+                            {
+                                if (ValidatePred(preds[l], curr, l) && curr.Equals(succs[l]))
+                                {
+                                    curr.marked = true;
+                                    Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
+                                    curr.level = ll = --l;
+                                    if (l == -1)
+                                    {
+                                        Interlocked.Decrement(ref size);
+                                        return curr.value;
+                                    }
+                                    if (!preds[l + 1].Equals(preds[l]))
+                                    {
+                                        breaking = true;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    breaking = true;
+                                    break;
+                                }
+                            }
                         }
                     }
+                    if (breaking)
+                        break;
                 }
             }
         }
@@ -303,7 +328,7 @@ namespace C5.concurrent
                 if (header.forward[0].tail)
                     throw new NotImplementedException();
                 Node x = header;
-                for (int i = maxLevel-1; i >= 0; i--)
+                for (int i = maxLevel - 1; i >= 0; i--)
                 {
                     while (!x.forward[i].tail && !x.forward[i].forward[i].tail)
                         x = x.forward[i];

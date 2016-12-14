@@ -62,8 +62,9 @@ namespace Benchmark
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = false;
             config.GlobalLockSkipList = true;
-            config.HellerSkipListv1 = true;
-            config.HellerSkipListv2 = true;
+            config.LothanShavitSkipList = true;
+            config.HellerSkipListv1 = false; 
+            config.HellerSkipListv2 = false;
 
 
             RunBenchmark();// Run the benchmark
@@ -227,6 +228,16 @@ namespace Benchmark
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
+
+                    if (config.LothanShavitSkipList)
+                    {
+                        datafile.Log("\n\n" + "LothanShavitSkipList");
+                        new Benchmark().BenchMark(config, typeof(LotanShavitSkiplist<int>));
+                        Console.WriteLine("LothanShavitSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
+
 
                     if (config.HellerSkipListv1)
                     {
@@ -657,5 +668,6 @@ namespace Benchmark
         }
 
         public long ExecutionTime { get; set; }
+        public bool LothanShavitSkipList { get; internal set; }
     }
 }
