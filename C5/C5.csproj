@@ -66,6 +66,7 @@
     <Compile Include="concurrent\heaps\HuntLockDEPQv1.cs" />
     <Compile Include="concurrent\lists\HellerSkipListv2.cs" />
     <Compile Include="concurrent\lists\GlobalLockSkipList.cs" />
+    <Compile Include="concurrent\lists\LotanShavitSkiplist.cs" />
     <Compile Include="concurrent\lists\SkipList.cs" />
     <Compile Include="concurrent\lists\HellerSkipListv1.cs" />
     <Compile Include="EnumerableBase.cs" />

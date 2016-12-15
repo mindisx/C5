@@ -35,7 +35,6 @@ namespace C5.concurrent
         SCG.IEqualityComparer<T> itemEquelityComparer;
         int size, maxLevel;
         Node header, tail;
-        Random rng;
 
         public HellerSkipListv2() : this(32) { }
 
@@ -56,7 +55,6 @@ namespace C5.concurrent
                 header.forward[i] = tail;
                 tail.forward[i] = tail;
             }
-            rng = new Random();
         }
 
 
@@ -248,10 +246,16 @@ namespace C5.concurrent
                         }
                         lock (curr.nodeLock)
                         {
-                            if (curr.tail || !curr.forward[0].tail || curr.level < 0 || curr.level != l)
+
+                            if (curr.tail || !curr.forward[0].tail || curr.level < 0)
                             {
                                 curr = null;
                                 break;
+                            }
+                            if (curr.level != l) //new stuff
+                            {
+                                ll = l = curr.level;
+                                continue;
                             }
                             while (true)
                             {
@@ -354,6 +358,7 @@ namespace C5.concurrent
 
         private int randomLevel()
         {
+            Random rng = new Random();
             int level = 0;
             int p = 1;
             while (rng.Next(2) < p && level < maxLevel - 1)

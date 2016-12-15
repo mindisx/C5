@@ -35,7 +35,7 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] {10000, 50000};
+            config.NumberOfElements = new[] { 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -62,9 +62,9 @@ namespace Benchmark
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = false;
             config.GlobalLockSkipList = true;
-            config.LothanShavitSkipList = true;
-            config.HellerSkipListv1 = false; 
-            config.HellerSkipListv2 = false;
+            config.LothanShavitSkipList = false;
+            config.HellerSkipListv1 = true;
+            config.HellerSkipListv2 = true;
 
 
             RunBenchmark();// Run the benchmark
