@@ -1,4 +1,4 @@
-﻿/*
+/*
  Copyright (c) 2003-2016 <...insert names here...>
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -152,7 +152,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
-        [Repeat (1000)]
+        [Repeat(1000)]
         public void ManyInserts()
         {
             Random rng = new Random();
@@ -166,7 +166,7 @@ namespace C5UnitTests.concurrent
             }
             Assert.AreEqual(n, queue.Count);
             list = list.OrderByDescending(i => i).ToList();
-            foreach(int i in list)
+            foreach (int i in list)
             {
                 Assert.AreEqual(i, queue.DeleteMax());
             }
@@ -206,18 +206,19 @@ namespace C5UnitTests.concurrent
         private IConcurrentPriorityQueue<int> queue;
         private int threadCount;
         private int n;
+        private bool prefill;
 
         /// <summary>
         /// Test setup.
         /// Enviroment.ProcessorCount is number of logical processors
         /// </summary>
         [SetUp]
-
         public void Init()
         {
-            queue = new HuntLockDEPQv3<int>();
+            queue = new HellerSkipListv2<int>();
             threadCount = Environment.ProcessorCount + 2;
-            n = 100;
+            n = 10000;
+            prefill = true;
         }
 
         [TearDown]
@@ -227,392 +228,216 @@ namespace C5UnitTests.concurrent
         }
 
 
-        [Test]
+        //[Test]
         public void CountTest()
         {
-            Assert.AreEqual(0, queue.Count);
-            Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
-                list.Add(rng.Next(1000));
-
-            List<int[]> partitions = new List<int[]>();
-            for (int i = 0; i < threadCount; i++)
-            {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
-                {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
-            }
-
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length; i++)
-                    queue.Add(partition[i]);
-            });
-
-            Assert.AreEqual(list.Count, queue.Count);
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                int c = n;
-                while (c > 0)
-                {
-                    queue.DeleteMin();
-                    c--;
-                }
-            });
-            Assert.AreEqual(0, queue.Count);
-        }
-
-        [Test]
-        public void IsEmptyTest()
-        {
-            Assert.IsTrue(queue.IsEmpty());
-            Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
-                list.Add(rng.Next(1000));
-
-            List<int[]> partitions = new List<int[]>();
-            for (int i = 0; i < threadCount; i++)
-            {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
-                {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
-            }
-
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length; i++)
-                    queue.Add(partition[i]);
-            });
-
-            Assert.AreEqual(list.Count, queue.Count);
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                int c = n;
-                while (c > 0)
-                {
-                    queue.DeleteMin();
-                    c--;
-                }
-            });
-            Assert.IsTrue(queue.IsEmpty());
+            throw new NotImplementedException();
         }
 
         //[Test]
+        public void IsEmptyTest()
+        {
+            throw new NoSuchItemException();
+        }
+
+        [Test]
         public void FindMaxTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.FindMax());
             Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
-            {
-                list.Add(rng.Next(1000));
-            }
-
-            List<int[]> partitions = new List<int[]>();
+            if (prefill)
+                for (int i = 0; i < n; i++)
+                    queue.Add(rng.Next(1000));
+            Thread[] threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
+                Thread t = new Thread(() =>
                 {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
+                    Random random = new Random();
+                    for (int y = 0; y < n; y++)
+                        queue.FindMax();
+                });
+                threads[i] = t;
             }
 
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length; i++)
-                {
-                    queue.Add(partition[i]);
-                }
-            });
-
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Start();
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Join();
             Assert.IsTrue(queue.Check());
-            Assert.AreEqual(list.Count, queue.Count);
-            list.Sort();
-            Assert.AreEqual(list[list.Count - 1], queue.FindMax());
         }
 
-        //[Test]
+        [Test]
         public void FindMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.FindMin());
             Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
-            {
-                list.Add(rng.Next(1000));
-            }
-
-            List<int[]> partitions = new List<int[]>();
+            if (prefill)
+                for (int i = 0; i < n; i++)
+                    queue.Add(rng.Next(1000));
+            Thread[] threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
+                Thread t = new Thread(() =>
                 {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
+                    Random random = new Random();
+                    for (int y = 0; y < n; y++)
+                        queue.FindMin();
+                });
+                threads[i] = t;
             }
 
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length; i++)
-                {
-                    queue.Add(partition[i]);
-                }
-            });
-
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Start();
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Join();
             Assert.IsTrue(queue.Check());
-            Assert.AreEqual(list.Count, queue.Count);
-            list.Sort();
-            Assert.AreEqual(list[0], queue.FindMin());
         }
 
-
         [Test]
+        [Repeat(10)]
         public void AddTest()
         {
             Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
-                list.Add(rng.Next(1000));
-
-            List<int[]> partitions = new List<int[]>();
+            if (prefill)
+                for (int i = 0; i < n; i++)
+                    queue.Add(rng.Next(1000));
+            Thread[] threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
+                Thread t = new Thread(() =>
                 {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
+                    Random random = new Random();
+                    for (int y = 0; y < n; y++)
+                        queue.Add(random.Next(1000));
+                });
+                threads[i] = t;
             }
 
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length; i++)
-                    queue.Add(partition[i]);
-            });
-
-            Assert.AreEqual(list.Count, queue.Count);
-            List<int> listTest = new List<int>();
-            while (queue.Count > 0)
-            {
-                try
-                {
-                    listTest.Add(queue.DeleteMin());
-                }
-                catch (Exception e)
-                {
-                    throw e;
-                }
-            }
-            Assert.AreEqual(list.Count, listTest.Count);
-            for (int i = 0; i < list.Count; i++)
-                Assert.IsTrue(listTest.Contains(list[i]));
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Start();
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Join();
+            Assert.IsTrue(queue.Check());
         }
 
         //[Test]
         public void AllTest()
         {
-            Assert.Throws<NoSuchItemException>(() => queue.All());
-            Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
-            {
-                list.Add(rng.Next(1000));
-            }
-
-            List<int[]> partitions = new List<int[]>();
-            for (int i = 0; i < threadCount; i++)
-            {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
-                {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
-            }
-
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length; i++)
-                {
-                    queue.Add(partition[i]);
-                }
-            });
-
-            Assert.IsTrue(queue.Check());
-            Assert.AreEqual(list.Count, queue.Count);
-
-            List<int> listTest = new List<int>((int[])queue.All());
-            Assert.AreEqual(list.Count, listTest.Count);
-            for (int i = 0; i < list.Count; i++)
-            {
-                Assert.IsTrue(listTest.Contains(list[i]));
-            }
+            throw new NoSuchItemException();
         }
 
         [Test]
+        [Repeat(10)]
         public void DeleteMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
-            Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
+            if (prefill)
             {
-                list.Add(rng.Next(1000));
+                Random rng = new Random();
+                for (int i = 0; i < n * threadCount; i++)
+                    queue.Add(rng.Next(10000));
             }
 
-            List<int[]> partitions = new List<int[]>();
+            Thread[] threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
+                Thread t = new Thread(() =>
                 {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
+                    Random random = new Random();
+                    for (int y = 0; y < n; y++)
+                        queue.DeleteMin();
+                });
+                threads[i] = t;
             }
 
-
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length; i++)
-                {
-                    queue.Add(partition[i]);
-                }
-            });
-
-            Assert.AreEqual(list.Count, queue.Count);
-            list.Sort();
-           // Assert.IsTrue(queue.Check());
-            ConcurrentQueue<int> bag = new ConcurrentQueue<int>();
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length/2; i++)
-                {
-                    bag.Enqueue(queue.DeleteMin());
-                }
-            });
-          //  Assert.IsTrue(queue.Check());
-            Assert.AreEqual(list.Count/2, bag.Count);
-            //Assert.AreEqual(0, queue.Count);
-            //Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Start();
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Join();
+            Assert.IsTrue(queue.Check());
+            Assert.AreEqual(0, queue.Count);
         }
 
         [Test]
+        [Repeat(10)]
         public void DeleteMaxTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
-
-            Random rng = new Random();
-            List<int> list = new List<int>();
-            for (int i = 0; i < n * threadCount; i++)
-                list.Add(rng.Next(1000));
-
-            List<int[]> partitions = new List<int[]>();
-            for (int i = 0; i < threadCount; i++)
+            if (prefill)
             {
-                int[] par = new int[n];
-                int c = 0;
-                for (int j = i * n; j < ((i + 1) * n); j++)
-                {
-                    par[c] = list[j];
-                    c++;
-                }
-                partitions.Add(par);
+                Random rng = new Random();
+                for (int i = 0; i < n * threadCount; i++)
+                    queue.Add(rng.Next(10000));
             }
 
-            Parallel.ForEach(partitions, (partition) =>
+            Thread[] threads = new Thread[threadCount];
+            for (int i = 0; i < threadCount; i++)
             {
-                for (int i = 0; i < partition.Length; i++)
-                    queue.Add(partition[i]);
-            });
+                Thread t = new Thread(() =>
+                {
+                    Random random = new Random();
+                    for (int y = 0; y < n; y++)
+                        queue.DeleteMax();
+                });
+                threads[i] = t;
+            }
 
-            Assert.AreEqual(list.Count, queue.Count);
-         //   Assert.IsTrue(queue.Check());
-            ConcurrentQueue<int> bag = new ConcurrentQueue<int>();
-            Parallel.ForEach(partitions, (partition) =>
-            {
-                for (int i = 0; i < partition.Length/2; i++)
-                    bag.Enqueue(queue.DeleteMax());
-            });
-         //   Assert.IsTrue(queue.Check());
-            Assert.AreEqual(list.Count/2, bag.Count);
-            //Assert.AreEqual(0, queue.Count);
-            //Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Start();
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Join();
+            Assert.IsTrue(queue.Check());
+            Assert.AreEqual(0, queue.Count);
         }
 
         [Test]
-        //[Repeat(10)]
+        [Repeat(10)]
         public void ConcurrentTest()
         {
             int insertPercent = 50,
                 deleteMinPercent = 25,
                 deleteMax = 100 - insertPercent - deleteMinPercent;
 
-            int[] threads = new int[threadCount];
-            for (int i = 0; i < threads.Length; i++)
-                threads[i] = i;
-            ConcurrentBag<int> cinsertBag = new ConcurrentBag<int>(),
-                cmindeleteBag = new ConcurrentBag<int>(), cmaxdeleteBag = new ConcurrentBag<int>();
-            Parallel.ForEach(threads, (t) =>
+            if (prefill)
             {
-                int iterations = 10000;
-                Random prng = new Random();
                 Random rng = new Random();
-                while (iterations >= 0)
+                for (int i = 0; i < n; i++)
+                    queue.Add(rng.Next(10000));
+            }
+            Thread[] threads = new Thread[threadCount];
+            for (int i = 0; i < threadCount; i++)
+            {
+                Thread t = new Thread(() =>
                 {
-                    int percent = prng.Next(0, 100);
-                    if (percent >= (100 - insertPercent))
+                    Random random = new Random();
+                    Random rng = new Random();
+                    for (int y = 0; y < n; y++)
                     {
-                        int element = rng.Next(10000);
-                        cinsertBag.Add(element);
-                        queue.Add(element);
-                    }
-                    else if (percent >= (100 - insertPercent - deleteMinPercent))
-                        try
+                        int percent = rng.Next(0, 100);
+                        if (percent >= (100 - insertPercent))
                         {
-                           cmindeleteBag.Add(queue.DeleteMin());
+                            queue.Add(random.Next(10000));
                         }
-                        catch (Exception e) {   /*ignore*/     }
-                    else
-                    {
-                        try
+                        else if (percent >= (100 - insertPercent - deleteMinPercent))
                         {
-                            cmaxdeleteBag.Add(queue.DeleteMax());
+                            try { queue.DeleteMin(); }
+                            catch (NoSuchItemException e) {   /*ignore*/     }
                         }
-                        catch (Exception e) {   /*ignore*/     }
+                        else
+                        {
+                            try { queue.DeleteMax(); }
+                            catch (NoSuchItemException e) {   /*ignore*/     }
+                        }
                     }
-                    iterations--;
-                }
-            });
+                });
+                threads[i] = t;
+            }
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Start();
+            for (int i = 0; i < threads.Length; i++)
+                threads[i].Join();
             Assert.IsTrue(queue.Check());
-            Assert.AreEqual(cinsertBag.Count, cmindeleteBag.Count + cmaxdeleteBag.Count + queue.Count);
         }
     }
     #endregion
