@@ -219,21 +219,20 @@ namespace C5.concurrent
                 }
 
 
-                lock (preds[0].nodeLock)
+                //lock (preds[0].nodeLock)
+                //{
+                if (preds[0].marked || preds[0].tail || preds[0].level < 0 || (curr = preds[0].forward[0]).tail)
+                    continue;
+                //lock (preds[0].forward[0])
+                //{
+                if (!curr.forward[0].tail || (l = curr.level) < 0)
                 {
-                    if (preds[0].marked || preds[0].tail || preds[0].level < 0 || preds[0].forward[0].tail)
-                        continue;
-                    lock (preds[0].forward[0])
-                    {
-                        l = (curr = preds[0].forward[0]).level;
-                        if (!curr.forward[0].tail)
-                        {
-                            curr = null;
-                            continue;
-                        }
-
-                    }
+                    curr = null;
+                    continue;
                 }
+
+                //    }
+                //}
                 bool breaking = false;
                 for (int ll = l; ll >= 0; ll--)
                 {
