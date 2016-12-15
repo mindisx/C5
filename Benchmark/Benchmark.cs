@@ -35,7 +35,7 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 100000 };
+            config.NumberOfElements = new[] { 10000, 50000, 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
