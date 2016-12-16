@@ -38,7 +38,7 @@ namespace C5UnitTests.concurrent
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new SkipList<int>(); }
+        public void Init() { queue = new HellerSkipListv2<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
@@ -217,7 +217,7 @@ namespace C5UnitTests.concurrent
         {
             queue = new HellerSkipListv2<int>();
             threadCount = Environment.ProcessorCount + 2;
-            n = 10000;
+            n = 10;
             prefill = true;
         }
 
@@ -243,6 +243,7 @@ namespace C5UnitTests.concurrent
         [Test]
         public void FindMaxTest()
         {
+            Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.FindMax());
             Random rng = new Random();
             if (prefill)
@@ -253,7 +254,6 @@ namespace C5UnitTests.concurrent
             {
                 Thread t = new Thread(() =>
                 {
-                    Random random = new Random();
                     for (int y = 0; y < n; y++)
                         queue.FindMax();
                 });
@@ -265,11 +265,13 @@ namespace C5UnitTests.concurrent
             for (int i = 0; i < threads.Length; i++)
                 threads[i].Join();
             Assert.IsTrue(queue.Check());
+            Assert.AreEqual((prefill ? n : 0), queue.Count);
         }
 
         [Test]
         public void FindMinTest()
         {
+            Assert.AreEqual(0, queue.Count);
             Assert.Throws<NoSuchItemException>(() => queue.FindMin());
             Random rng = new Random();
             if (prefill)
@@ -280,7 +282,6 @@ namespace C5UnitTests.concurrent
             {
                 Thread t = new Thread(() =>
                 {
-                    Random random = new Random();
                     for (int y = 0; y < n; y++)
                         queue.FindMin();
                 });
@@ -292,12 +293,14 @@ namespace C5UnitTests.concurrent
             for (int i = 0; i < threads.Length; i++)
                 threads[i].Join();
             Assert.IsTrue(queue.Check());
+            Assert.AreEqual((prefill ? n : 0), queue.Count);
         }
 
         [Test]
         [Repeat(10)]
         public void AddTest()
         {
+            Assert.AreEqual(0, queue.Count);
             Random rng = new Random();
             if (prefill)
                 for (int i = 0; i < n; i++)
@@ -319,6 +322,7 @@ namespace C5UnitTests.concurrent
             for (int i = 0; i < threads.Length; i++)
                 threads[i].Join();
             Assert.IsTrue(queue.Check());
+            Assert.AreEqual((prefill ? n : 0) + threadCount * n, queue.Count);
         }
 
         //[Test]
@@ -398,12 +402,15 @@ namespace C5UnitTests.concurrent
             int insertPercent = 50,
                 deleteMinPercent = 25,
                 deleteMax = 100 - insertPercent - deleteMinPercent;
+            int removecount = 0, insertcount = 0;
 
+            Assert.AreEqual(0, queue.Count);
             if (prefill)
             {
                 Random rng = new Random();
-                for (int i = 0; i < n; i++)
+                for (int i = 0; i < n * 2; i++)
                     queue.Add(rng.Next(10000));
+                Assert.AreEqual(n*2, queue.Count);
             }
             Thread[] threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
@@ -418,15 +425,24 @@ namespace C5UnitTests.concurrent
                         if (percent >= (100 - insertPercent))
                         {
                             queue.Add(random.Next(10000));
+                            Interlocked.Increment(ref insertcount);
                         }
                         else if (percent >= (100 - insertPercent - deleteMinPercent))
                         {
-                            try { queue.DeleteMin(); }
+                            try
+                            {
+                                queue.DeleteMin();
+                                Interlocked.Increment(ref removecount);
+                            }
                             catch (NoSuchItemException e) {   /*ignore*/     }
                         }
                         else
                         {
-                            try { queue.DeleteMax(); }
+                            try
+                            {
+                                queue.DeleteMax();
+                                Interlocked.Increment(ref removecount);
+                            }
                             catch (NoSuchItemException e) {   /*ignore*/     }
                         }
                     }
@@ -438,6 +454,7 @@ namespace C5UnitTests.concurrent
             for (int i = 0; i < threads.Length; i++)
                 threads[i].Join();
             Assert.IsTrue(queue.Check());
+            Assert.AreEqual((prefill ? n * 2 : 0) + insertcount, removecount + queue.Count);
         }
     }
     #endregion
