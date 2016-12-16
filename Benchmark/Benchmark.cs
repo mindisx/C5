@@ -35,14 +35,14 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 10000, 50000, 100000 };
+            config.NumberOfElements = new[] { 10000, 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
             config.PercentageInsert = new[] { 20, 35 };
             config.PercentageDeleteMin = new[] { 10, 15 };
             config.PercentageDeleteMax = new[] { 10, 15 };
-            config.Prefill = true;
+            config.Prefill = true; //NOTE: since we are testing on double ended queues, we need twize as many elements so we do not get NoSuchItemException
 
             //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
             //config.WarmupRuns = 4;
@@ -309,7 +309,7 @@ namespace Benchmark
                         * i% insertions, d% deletions, and s% searches on keys drawn uniformly randomly from a key range of 
                         * size r, then the expected size of the tree in the steady state will be ri/(i+d)
                         */
-                        int r = config.EndRangeRandom - config.StartRangeRandom;
+                        int r = (config.EndRangeRandom - config.StartRangeRandom) * 2; // double the range  
                         int steadyStateSize = config.CurrentNumberOfElements / 2;
 
                         if (config.CurrentPercentageInsert > 0 && config.CurrentPercentageDeleteMin > 0 && config.CurrentPercentageDeleteMax > 0)
@@ -320,7 +320,7 @@ namespace Benchmark
                         if (steadyStateSize > r)
                             throw new Exception("Range of numbers is too small to reach steady state");
 
-                        Queue<int> threadQueue = generateRandomQueue(steadyStateSize, config.StartRangeRandom, config.EndRangeRandom);
+                        Queue<int> threadQueue = generateRandomQueue(steadyStateSize, config.StartRangeRandom, config.EndRangeRandom); //double the size 
                         while (threadQueue.Count > 0)
                         {
                             int element = threadQueue.Dequeue();
