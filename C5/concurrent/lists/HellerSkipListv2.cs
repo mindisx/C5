@@ -94,39 +94,39 @@ namespace C5.concurrent
         public bool Add(T item)
         {
             int lvl = randomLevel();
+            int l = 0;
             bool initialInsert = false;
-            Node curr = new Node(-1, item);
-            for (int l = 0; l <= lvl; l++)
+            Node curr = new Node(0, item);
+            while (true)
             {
-                bool levelInsert = false;
-                while (true)
+                if (curr.marked)
+                    return true;
+                Node x = header;
+                Node[] preds = new Node[maxLevel], succs = new Node[maxLevel];
+                if (!initialInsert)
                 {
-                    if (curr.marked)
-                        return true;
-                    Node x = header;
-                    Node[] preds = new Node[maxLevel], succs = new Node[maxLevel];
-                    if (!initialInsert)
+                    for (int i = maxLevel - 1; i >= 0; i--)
                     {
-                        for (int i = maxLevel - 1; i >= 0; i--)
-                        {
-                            while (!x.forward[i].tail && comparer.Compare(x.forward[i].value, item) <= 0)
-                                x = x.forward[i];
-                            preds[i] = x;
-                            succs[i] = x.forward[i];
-                        }
+                        while (!x.forward[i].tail && comparer.Compare(x.forward[i].value, item) <= 0)
+                            x = x.forward[i];
+                        preds[i] = x;
+                        succs[i] = x.forward[i];
                     }
-                    else
+                }
+                else
+                {
+                    Node next;
+                    bool hittail = false;
+                    for (int i = maxLevel - 1; i >= 0; i--)
                     {
-                        Node next;
-                        bool hittail = false;
-                        for (int i = maxLevel - 1; i >= 0; i--)
-                        {
-                            while (!(next = x.forward[i]).tail && comparer.Compare(next.value, item) < 0)
-                                x = next;
-                            preds[i] = x;
-                            succs[i] = x.forward[i];
-                        }
+                        while (!(next = x.forward[i]).tail && comparer.Compare(next.value, item) < 0)
+                            x = next;
+                        preds[i] = x;
+                        succs[i] = x.forward[i];
+                    }
 
+                    for (int i = lvl; i >= l; i--)
+                    {
                         x = preds[l - 1];
                         if (x.tail) continue;
                         while (!curr.marked && !(next = x.forward[l - 1]).tail && !curr.Equals(next))
@@ -137,66 +137,58 @@ namespace C5.concurrent
                                 hittail = true;
                                 break;
                             }
-                            if (x.forward.Length - 1 >= l)
+                            if (x.level >= i)
                             {
-                                preds[l] = x;
-                                succs[l] = x.forward[l];
+                                preds[i] = x;
+                                succs[i] = x.forward[i];
                             }
                         }
-                        if (hittail) continue;
+                        if (hittail) break;
                     }
-                    bool breaking = false;
-                    for (int ll = l; ll <= lvl; ll++)
+                    if (hittail) continue;
+                }
+                bool breaking = false;
+                while (l <= lvl)
+                {
+                    lock (preds[l].nodeLock)
                     {
-                        lock (preds[ll].nodeLock)
+                        Node pred = preds[l];
+                        if (pred.tail || pred.level < 0) break;
+                        lock (curr.nodeLock)
                         {
-                            Node pred = preds[ll];
-                            if (pred.tail) break;
-                            lock (curr.nodeLock)
+                            if (curr.marked) return true;
+                            while (l <= lvl && l <= pred.level)
                             {
-                                if (curr.marked) return true;
-                                for (int lll = ll; lll < pred.forward.Length; lll++)
+                                if (Validate(pred, succs[l], l, item))
                                 {
-                                    if (lll <= lvl)
+                                    Node[] newfor = new Node[l + 1];
+                                    for (int i = 0; i < curr.forward.Length; i++)
+                                        newfor[i] = curr.forward[i];
+                                    Interlocked.Exchange(ref newfor[l], succs[l]);
+                                    Interlocked.Exchange(ref curr.forward, newfor);
+                                    Interlocked.Exchange(ref pred.forward[l], curr);
+                                    if (l == 0)
                                     {
-                                        if (Validate(pred, succs[l], l, item))
-                                        {
-                                            l = ll = lll;
-                                            Node[] newfor = new Node[l + 1];
-                                            for (int i = 0; i < curr.forward.Length; i++)
-                                                newfor[i] = curr.forward[i];
-                                            Interlocked.Exchange(ref newfor[l], succs[l]);
-                                            Interlocked.Exchange(ref curr.forward, newfor);
-                                            Interlocked.Exchange(ref pred.forward[l], curr);
-                                            levelInsert = true;
-                                            curr.level = l;
-                                            if (l == 0)
-                                            {
-                                                Interlocked.Increment(ref size);
-                                                initialInsert = true;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            breaking = true;
-                                            break;
-                                        }
+                                        Interlocked.Increment(ref size);
+                                        initialInsert = true;
                                     }
-                                    else
-                                    {
-                                        breaking = true;
-                                        break;
-                                    }
+                                    curr.level = l;
+                                    if (curr.level == lvl)
+                                        return true;
+                                    l++;
                                 }
-                                if (breaking)
+                                else
+                                {
+                                    breaking = true;
                                     break;
+                                }
                             }
+                            if (breaking)
+                                break;
                         }
                     }
-                    if (levelInsert) break; //continue with next level
                 }
             }
-            return true;
         }
         public T DeleteMax()
         {
@@ -218,27 +210,26 @@ namespace C5.concurrent
                     succs[i] = x.forward[i];
                 }
 
-
-                //lock (preds[0].nodeLock)
-                //{
-                if (preds[0].marked || preds[0].tail || preds[0].level < 0 || (curr = preds[0].forward[0]).tail)
-                    continue;
-                //lock (preds[0].forward[0])
-                //{
-                if (!curr.forward[0].tail || (l = curr.level) < 0)
+                lock (preds[0].nodeLock)
                 {
-                    curr = null;
-                    continue;
+                    if (preds[0].marked || preds[0].tail || preds[0].level < 0 || (curr = preds[0].forward[0]).tail)
+                        continue;
+                    lock (curr.nodeLock)
+                    {
+                        if (curr.tail || !curr.forward[0].tail)
+                        {
+                            curr = null;
+                            continue;
+                        }
+                        l = curr.level;
+                    }
                 }
-
-                //    }
-                //}
                 bool breaking = false;
-                for (int ll = l; ll >= 0; ll--)
+                while (true)
                 {
                     lock (preds[l].nodeLock)
                     {
-                        if (preds[l].tail || preds[l].level < 0)
+                        if (preds[l].tail || !curr.forward[0].tail || preds[l].level < 0)
                         {
                             curr = null;
                             break;
@@ -253,7 +244,7 @@ namespace C5.concurrent
                             }
                             if (curr.level != l) //new stuff
                             {
-                                ll = l = curr.level;
+                                l = curr.level;
                                 continue;
                             }
                             while (true)
@@ -262,17 +253,14 @@ namespace C5.concurrent
                                 {
                                     curr.marked = true;
                                     Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
-                                    curr.level = ll = --l;
+                                    curr.level = --l;
                                     if (l == -1)
                                     {
                                         Interlocked.Decrement(ref size);
                                         return curr.value;
                                     }
                                     if (!preds[l + 1].Equals(preds[l]))
-                                    {
-                                        breaking = true;
                                         break;
-                                    }
                                 }
                                 else
                                 {
@@ -290,8 +278,8 @@ namespace C5.concurrent
 
         public T DeleteMin()
         {
-            T retavl = default(T);
-            int currlvl = int.MaxValue;
+            if (header.forward[0].tail)
+                throw new NoSuchItemException();
             while (true)
             {
                 Node pred = header;
@@ -302,26 +290,26 @@ namespace C5.concurrent
                     {
                         if (curr.tail)
                             throw new NoSuchItemException();
-                        if (ValidateUnmarked(pred, curr, 0))
+                        if (curr.level < 0)
+                            continue;
+                        for (int i = curr.level; i >= 0; i--)
                         {
-                            curr.marked = true;
-                            retavl = curr.value;
-                            for (int i = curr.forward.Length - 1; i >= 0; i--)
+                            if (ValidatePred(pred, curr, i))
                             {
+                                curr.marked = true;
                                 Interlocked.Exchange(ref pred.forward[i], curr.forward[i]);
-                                currlvl = i;
                                 curr.level = i;
                                 if (i == 0)
+                                {
                                     curr.level = -1;
+                                    Interlocked.Decrement(ref size);
+                                    return curr.value;
+                                }
                             }
                         }
                     }
                 }
-                if (currlvl == 0)
-                    break;
             }
-            Interlocked.Decrement(ref size);
-            return retavl;
         }
 
         public T FindMax()
@@ -329,15 +317,23 @@ namespace C5.concurrent
             while (true)
             {
                 if (header.forward[0].tail)
-                    throw new NotImplementedException();
+                    throw new NoSuchItemException();
                 Node x = header;
+                Node curr = null;
                 for (int i = maxLevel - 1; i >= 0; i--)
                 {
-                    while (!x.forward[i].tail && !x.forward[i].forward[i].tail)
-                        x = x.forward[i];
+                    while (!(curr = x.forward[i]).tail && !curr.forward[i].tail)
+                        x = curr;
                 }
-                if (!x.tail || !x.forward[0].tail)
-                    return x.forward[0].value;
+                if (curr.forward[0].tail)
+                {
+                    if (curr.tail)
+                        continue;
+                    else
+                        return curr.value;
+                }
+                else
+                    return curr.forward[0].value;
             }
         }
 
@@ -371,19 +367,6 @@ namespace C5.concurrent
                 return true;
             if (!succ.tail && !pred.marked && !succ.marked && pred.forward[level].Equals(succ) &&
                 comparer.Compare(pred.value, item) <= 0 && comparer.Compare(succ.value, item) >= 0)
-                return true;
-            return false;
-        }
-
-        private bool ValidateUnmarked(Node pred, Node succ, int level)
-        {
-            if (!succ.tail && !pred.marked && !succ.marked && pred.forward[level].Equals(succ))
-                return true;
-            return false;
-        }
-        private bool ValidateMarked(Node pred, Node succ, int level)
-        {
-            if (!succ.tail && !pred.marked && succ.marked && /*succ.pid == Thread.CurrentThread.ManagedThreadId &&*/ pred.forward[level].Equals(succ))
                 return true;
             return false;
         }
