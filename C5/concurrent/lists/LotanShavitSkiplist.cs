@@ -9,6 +9,9 @@ namespace C5.concurrent
 {
     public class LotanShavitSkiplist<T> : IConcurrentPriorityQueue<T>
     {
+        /// <summary>
+        /// works, but is slow
+        /// </summary>
         public class Node
         {
             //An array the size of the "height" of the node, holds pointers to nodes on the seperate levels. 
@@ -197,45 +200,51 @@ namespace C5.concurrent
                 throw new NoSuchItemException();
             Node retNode;
             T retval;
-            int marked = 2;
+            int marked = -1;
             Node node1 = header;
             Node node2;
             Node[] update = new Node[maxLevel];
             bool lockTaken = false;
             long searchTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             Node temp;
-
+            int pid;
             //Initial search, in the paper Lotan / shavit traverse the bottom layer to check ALL nodes for the first one that
             //was inserted before the search began, skipping all that was inserted after.
             // when deleting from the max end of the queue, the issue becomes that using this approach means that the search time
             //    will effictivly be in liniar o(n) instead of log n
             //our suggested approach uses the traditional skip search and then checks for the time stamp, combining the best of both methods
+
             while (true)
             {
                 node1 = header;
                 for (int i = maxLevel - 1; i >= 0; i--)
                 {
-                    while (!(node2 = node1.forward[i]).tail)
+                    while (!(node2 = node1.forward[i]).tail && node2.deleted != 1)
                     {
                         node1 = node2;
                     }
                 }
 
-                if (node1.timeStamp <= searchTimestamp && node1.pid != Thread.CurrentThread.ManagedThreadId)
+                if (node1.timeStamp <= searchTimestamp)
                 {
                     marked = Interlocked.Exchange(ref node1.deleted, 1);
                     if (marked == 0)
                     {
+                        pid = Interlocked.Exchange(ref node1.pid, Thread.CurrentThread.ManagedThreadId);
+                        if (pid != 0)
+                        {
+                            throw new Exception("marked was supposed to be 0, marked is: " + marked + "and pid: " + pid + " is NOT current thread ID. this is not supposed to happen");
+                        }
                         break;
                     }
                 }
 
             }
-            node1.pid = Thread.CurrentThread.ManagedThreadId;
+            
             retval = node1.value;
             retNode = node1;
 
-            for (int i = maxLevel - 1; i >= 0; i--)
+            for (int i = retNode.nodeLevel-1; i >= 0; i--)
             {
                 node1 = header;
                 node2 = node1.forward[i];
@@ -258,7 +267,7 @@ namespace C5.concurrent
                 retval = node2.value;
                 for (int i = node2.forward.Length - 1; i >= 0; i--)
                 {
-                    node1 = getLock(update[i], retval, i, ref lockTaken);
+                    node1 = getMaxLock(update[i], retval, i, ref lockTaken, retNode);
                     lock (node2.levelLock[i])
                     {
                         node1.forward[i] = node2.forward[i];
@@ -273,6 +282,7 @@ namespace C5.concurrent
 
                 }
             }
+            retNode = null;
             Interlocked.Decrement(ref size);
             return retval;
         }
@@ -383,13 +393,14 @@ namespace C5.concurrent
             if (header.forward[0].tail)
                 throw new NoSuchItemException();
 
-            Node x = header;
-            for (int i = maxLevel; i >= 0; i--)
+            Node node1 = header;
+            Node node2 = null;
+            for (int i = maxLevel-1; i >= 0; i--)
             {
-                while (!x.forward[i].tail && !x.forward[i].forward[i].tail)
-                    x = x.forward[i];
+                while (!(node2 = node1.forward[i]).tail && !node2.forward[i].tail)
+                    node1 = node2;
             }
-            return x.forward[0].value;
+            return node1.forward[0].value;
         }
 
         public T FindMin()
@@ -507,6 +518,42 @@ namespace C5.concurrent
             //try to search again, check if something has changed 
             node2 = node1.forward[lvl]; //orginal psudocode
             while (node2.tail != true && comparer.Compare(node2.value, value) < 0)
+            {
+                if (firstlocktaken)
+                {
+                    Monitor.Exit(node1.levelLock[lvl]);
+                    firstlocktaken = false;
+                }
+                //tempNode = node2;
+                node1 = node2;
+                Monitor.Enter(node1.levelLock[lvl], ref firstlocktaken);
+                node2 = node1.forward[lvl];
+            }
+
+            return node1;
+        }
+
+        private Node getMaxLock(Node node1, T value, int lvl, ref bool firstlocktaken, Node retNode)
+        {
+            //var retNode = node1;
+            Node node2 = node1.forward[lvl];
+            while (!node2.tail  && node2 != retNode)
+            {
+                node1 = node2;
+                node2 = node2.forward[lvl];
+            }
+            try
+            {
+                Monitor.Enter(node1.levelLock[lvl], ref firstlocktaken);
+            }
+            catch (Exception e)
+            {
+
+                throw e;
+            }
+            //try to search again, check if something has changed 
+            node2 = node1.forward[lvl]; //orginal psudocode
+            while (node2.tail != true && node2 != retNode)
             {
                 if (firstlocktaken)
                 {

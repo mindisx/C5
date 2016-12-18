@@ -38,7 +38,7 @@ namespace C5UnitTests.concurrent
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new HellerSkipListv2<int>(); }
+        public void Init() { queue = new LotanShaviSkipList_v2<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
@@ -73,6 +73,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Category("Sequential")]
         public void IsEmptyTest()
         {
             Assert.IsTrue(queue.IsEmpty());
@@ -81,6 +82,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Category("Sequential")]
         public void CountTest()
         {
             Assert.AreEqual(0, queue.Count);
@@ -92,6 +94,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Category("Sequential")]
         public void AddTest()
         {
             queue.Add(20);
@@ -109,6 +112,7 @@ namespace C5UnitTests.concurrent
 
         [Test]
         [Repeat(1000)]
+        [Category("Sequential")]
         public void RemoveMaxTest()
         {
             queue.Add(20);
@@ -131,6 +135,7 @@ namespace C5UnitTests.concurrent
 
         [Test]
         [Repeat(1000)]
+        [Category("Sequential")]
         public void RemoveMinTest()
         {
             queue.Add(20);
@@ -152,7 +157,8 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
-        [Repeat(1000)]
+        //[Repeat(1000)]
+        [Category("Sequential")]
         public void ManyInserts()
         {
             Random rng = new Random();
@@ -174,6 +180,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Category("Sequential")]
         public void AllTest()
         {
             Assert.AreEqual(0, queue.Count);
@@ -207,6 +214,7 @@ namespace C5UnitTests.concurrent
         private int threadCount;
         private int n;
         private bool prefill;
+        private const int repeatTests = 10;
 
         /// <summary>
         /// Test setup.
@@ -215,7 +223,7 @@ namespace C5UnitTests.concurrent
         [SetUp]
         public void Init()
         {
-            queue = new HellerSkipListv2<int>();
+            queue = new LotanShaviSkipList_v2<int>();
             threadCount = Environment.ProcessorCount + 2;
             n = 10;
             prefill = true;
@@ -241,6 +249,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Category("Parallel")]
         public void FindMaxTest()
         {
             Assert.AreEqual(0, queue.Count);
@@ -269,6 +278,7 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
+        [Category("Parallel")]
         public void FindMinTest()
         {
             Assert.AreEqual(0, queue.Count);
@@ -297,7 +307,8 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
-        [Repeat(10)]
+        [Repeat(repeatTests)]
+        [Category("Parallel")]
         public void AddTest()
         {
             Assert.AreEqual(0, queue.Count);
@@ -332,7 +343,8 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
-        [Repeat(10)]
+        [Repeat(repeatTests)]
+        [Category("Parallel")]
         public void DeleteMinTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMin());
@@ -364,7 +376,8 @@ namespace C5UnitTests.concurrent
         }
 
         [Test]
-        [Repeat(10)]
+        [Repeat(repeatTests)]
+        [Category("Parallel")]
         public void DeleteMaxTest()
         {
             Assert.Throws<NoSuchItemException>(() => queue.DeleteMax());
@@ -391,12 +404,15 @@ namespace C5UnitTests.concurrent
                 threads[i].Start();
             for (int i = 0; i < threads.Length; i++)
                 threads[i].Join();
+
+            Console.WriteLine(queue.ToString());
             Assert.IsTrue(queue.Check());
             Assert.AreEqual(0, queue.Count);
         }
 
         [Test]
-        [Repeat(10)]
+        [Repeat(repeatTests)]
+        [Category("Parallel")]
         public void ConcurrentTest()
         {
             int insertPercent = 50,
