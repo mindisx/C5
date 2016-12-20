@@ -69,6 +69,7 @@
     <Compile Include="concurrent\lists\LotanShavitSkiplist.cs" />
     <Compile Include="concurrent\lists\SkipList.cs" />
     <Compile Include="concurrent\lists\HellerSkipListv1.cs" />
+    <Compile Include="concurrent\lists\SkipQueue.cs" />
     <Compile Include="EnumerableBase.cs" />
     <Compile Include="MemorySafeEnumerator.cs" />
     <Compile Include="comparers\EqualityComparer.cs" />

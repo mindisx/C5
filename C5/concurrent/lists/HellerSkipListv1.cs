@@ -92,19 +92,19 @@ namespace C5.concurrent
 
         public bool Add(T item)
         {
-            int lvl = randomLevel();
-            bool initialInsert = false;
-            Node curr = new Node(0, item);
-            for (int l = 0; l <= lvl; l++)
+            int lvl = randomLevel(); //number of levels a new node has to be inserted
+            bool initialInsert = false; 
+            Node curr = new Node(0, item); //initialize new node with forward.lenght = 1
+            for (int l = 0; l <= lvl; l++) //iterate through lvl 
             {
                 bool levelInsert = false;
                 while (true)
                 {
-                    if (curr.marked)
+                    if (curr.marked) //if new node has been logically deleted
                         return true;
                     Node x = header;
-                    Node[] preds = new Node[maxLevel], succs = new Node[maxLevel];
-                    if (!initialInsert)
+                    Node[] preds = new Node[maxLevel], succs = new Node[maxLevel]; //array of predecessors and successors
+                    if (!initialInsert) // new node have not been iserted into the list 
                     {
                         for (int i = maxLevel - 1; i >= 0; i--)
                         {
@@ -114,11 +114,11 @@ namespace C5.concurrent
                             succs[i] = x.forward[i];
                         }
                     }
-                    else
+                    else //new node have been iserted into the list 
                     {
                         Node next;
                         bool hittail = false;
-                        for (int i = maxLevel - 1; i >= 0; i--)
+                        for (int i = maxLevel - 1; i >= 0; i--) //fill preds array with node where value is smaller than item
                         {
                             while (!(next = x.forward[i]).tail && comparer.Compare(next.value, item) < 0)
                                 x = next;
@@ -126,9 +126,9 @@ namespace C5.concurrent
                             succs[i] = x.forward[i];
                         }
 
-                        x = preds[l - 1];
+                        x = preds[l - 1]; //assign predecessor at level l-1 to be x 
                         if (x.tail) continue;
-                        while (!curr.marked && !(next = x.forward[l - 1]).tail && !curr.Equals(next))
+                        while (!curr.marked && !(next = x.forward[l - 1]).tail && !curr.Equals(next)) //search for curr node at level l-1 
                         {
                             x = next;
                             if (x.tail || curr.Equals(x))
@@ -136,13 +136,13 @@ namespace C5.concurrent
                                 hittail = true;
                                 break;
                             }
-                            if (x.forward.Length - 1 >= l)
+                            if (x.forward.Length - 1 >= l) //if true, then x becomes new predecessor at level l 
                             {
                                 preds[l] = x;
                                 succs[l] = x.forward[l];
                             }
                         }
-                        if (hittail) continue;
+                        if (hittail) continue; //restart
                     }
                     lock (preds[l].nodeLock)
                     {
@@ -151,19 +151,19 @@ namespace C5.concurrent
                         lock (curr.nodeLock)
                         {
                             if (curr.marked) return true;
-                            if (Validate(preds[l], succs[l], l, item))
+                            if (Validate(preds[l], succs[l], l, item)) //if synchronization conflict have not occured at level l
                             {
-                                Node[] newfor = new Node[l + 1];
-                                for (int i = 0; i < curr.forward.Length; i++)
+                                Node[] newfor = new Node[l + 1]; //create array of size l
+                                for (int i = 0; i < curr.forward.Length; i++) //copy references to new array
                                     newfor[i] = curr.forward[i];
-                                Interlocked.Exchange(ref newfor[l], succs[l]);
-                                Interlocked.Exchange(ref curr.forward, newfor);
-                                Interlocked.Exchange(ref preds[l].forward[l], curr);
-                                levelInsert = true;
-                                if (l == 0)
+                                Interlocked.Exchange(ref newfor[l], succs[l]); //add successor at level l to the new array
+                                Interlocked.Exchange(ref curr.forward, newfor);//assign new array to be curr.forward
+                                Interlocked.Exchange(ref preds[l].forward[l], curr); //assign predecessor at level l to poin to new node
+                                levelInsert = true; //node have been inserted into l level
+                                if (l == 0) //if node have been inserted into the first level
                                 {
-                                    Interlocked.Increment(ref size);
-                                    initialInsert = true;
+                                    Interlocked.Increment(ref size); //increase size of the list
+                                    initialInsert = true; //initial insert have happened
                                 }
                             }
                         }
@@ -199,6 +199,7 @@ namespace C5.concurrent
                 else
                 {
                     Node next;
+                    bool hittail = false;
                     for (int i = maxLevel - 1; i >= 0; i--)
                     {
                         while (!(next = x.forward[i]).tail && comparer.Compare(next.value, retval) < 0)
@@ -206,35 +207,40 @@ namespace C5.concurrent
                         preds[i] = x;
                     }
 
-                    x = preds[l];
+                    x = preds[l];//assign predecessor at level l to be x 
                     if (x.tail) continue;
-                    while (!(next = x.forward[l]).tail && !next.Equals(curr))
+                    while (!(next = x.forward[l]).tail && !next.Equals(curr))//search for curr node at level l
                     {
                         x = next;
-                        if (x.tail || curr.Equals(x)) continue;
-                        if (x.forward.Length - 1 >= l)
+                        if (x.tail || curr.Equals(x))
+                        {
+                            hittail = true;
+                            break;
+                        }
+                        if (x.forward.Length - 1 >= l)//if true, then x becomes new predecessor at level l 
                             preds[l] = x;
                     }
+                    if (hittail) continue; //restart
                 }
 
-                if (!initialdelete)
+                if (!initialdelete) //a node have not been logically deleted
                 {
                     lock (preds[0].nodeLock)
                     {
                         if (preds[0].tail) continue;
-                        curr = preds[0].forward[0];
+                        curr = preds[0].forward[0]; //find a node to delete
                         lock (curr.nodeLock)
                         {
-                            if (ValidateUnmarked(preds[0], curr, 0))
+                            if (ValidateUnmarked(preds[0], curr, 0)) //if validation pass
                             {
-                                curr.marked = true;
-                                curr.pid = Thread.CurrentThread.ManagedThreadId;
-                                initialdelete = true;
-                                l = curr.forward.Length - 1;
-                                retval = curr.value;
+                                curr.marked = true; //logically delete node
+                                curr.pid = Thread.CurrentThread.ManagedThreadId; //assign thread id
+                                initialdelete = true; //logicall deleteion happened
+                                l = curr.forward.Length - 1; //obtain level from which curr has to be deleted
+                                retval = curr.value; //get value
                             }
                             else
-                                continue;
+                                continue; //restart
                         }
                     }
                 }
@@ -245,20 +251,20 @@ namespace C5.concurrent
                     lock (curr.nodeLock)
                     {
                         if (curr.tail) continue;
-                        if (ValidateMarked(preds[l], curr, l))
+                        if (ValidateMarked(preds[l], curr, l)) //if validation pass
                         {
-                            Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
-                            currlvl = --l;
+                            Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]); //remove curr node from level
+                            currlvl = --l; //next level
                         }
                         else
                             continue;
                     }
                 }
-                if (currlvl == -1)
+                if (currlvl == -1) //when true, all levels have been deleted
                     break;
             }
             Interlocked.Decrement(ref size);
-            return retval;
+            return retval; 
         }
 
         public T DeleteMin()
@@ -275,12 +281,12 @@ namespace C5.concurrent
                     {
                         if (curr.tail)
                             throw new NoSuchItemException();
-                        if (ValidateUnmarked(pred, curr, 0))
+                        if (ValidateUnmarked(pred, curr, 0)) //if validation holds
                         {
-                            curr.marked = true;
-                            curr.pid = Thread.CurrentThread.ManagedThreadId;
+                            curr.marked = true; //logically delete
+                            curr.pid = Thread.CurrentThread.ManagedThreadId; //assign current thread id
                             retavl = curr.value;
-                            for (int i = curr.forward.Length - 1; i >= 0; i--)
+                            for (int i = curr.forward.Length - 1; i >= 0; i--) //remove curr from all levels
                             {
                                 Interlocked.Exchange(ref pred.forward[i], curr.forward[i]);
                                 currlvl = i;
@@ -288,7 +294,7 @@ namespace C5.concurrent
                         }
                     }
                 }
-                if (currlvl == 0)
+                if (currlvl == 0) //if true, all levels have been removed
                     break;
             }
             Interlocked.Decrement(ref size);

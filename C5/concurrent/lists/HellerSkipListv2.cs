@@ -93,43 +93,44 @@ namespace C5.concurrent
 
         public bool Add(T item)
         {
-            int lvl = randomLevel();
-            int l = 0;
+            int lvl = randomLevel(); //get number of levels a new node has to inserted into 
+            int l = 0; //starting level
             bool initialInsert = false;
             Node curr = new Node(0, item);
             while (true)
             {
-                if (curr.marked)
-                    return true;
+                if (curr.marked) return true;//if curr logicall deleted, exit
                 Node x = header;
                 Node[] preds = new Node[maxLevel], succs = new Node[maxLevel];
                 if (!initialInsert)
                 {
+                    //ne wnode have not been inserted yet.
                     for (int i = maxLevel - 1; i >= 0; i--)
                     {
-                        while (!x.forward[i].tail && comparer.Compare(x.forward[i].value, item) <= 0)
+                        while (!x.forward[i].tail && comparer.Compare(x.forward[i].value, item) <= 0) //skip nodes until a position for new node is found.
                             x = x.forward[i];
-                        preds[i] = x;
-                        succs[i] = x.forward[i];
+                        preds[i] = x; //fill with predecessors
+                        succs[i] = x.forward[i]; //fill with successors
                     }
                 }
                 else
                 {
+                    //new node have been inserted into the list
                     Node next;
                     bool hittail = false;
-                    for (int i = maxLevel - 1; i >= 0; i--)
+                    for (int i = maxLevel - 1; i >= 0; i--) //for each level
                     {
-                        while (!(next = x.forward[i]).tail && comparer.Compare(next.value, item) < 0)
+                        while (!(next = x.forward[i]).tail && comparer.Compare(next.value, item) < 0) //skip nodes until a nodes with the same value as new node are found.
                             x = next;
-                        preds[i] = x;
-                        succs[i] = x.forward[i];
+                        preds[i] = x; //fill with predecessors
+                        succs[i] = x.forward[i];//fill with successors
                     }
 
-                    for (int i = lvl; i >= l; i--)
+                    for (int i = lvl; i >= l; i--) //for each level between lvl and l
                     {
-                        x = preds[l - 1];
+                        x = preds[l - 1]; //assing as predecessor at level l-1
                         if (x.tail) continue;
-                        while (!curr.marked && !(next = x.forward[l - 1]).tail && !curr.Equals(next))
+                        while (!curr.marked && !(next = x.forward[l - 1]).tail && !curr.Equals(next)) //skip nodes until new node is found
                         {
                             x = next;
                             if (x.tail && x.Equals(curr))
@@ -137,10 +138,10 @@ namespace C5.concurrent
                                 hittail = true;
                                 break;
                             }
-                            if (x.level >= i)
+                            if (x.level >= i) //if x node has number of levels at least as i 
                             {
-                                preds[i] = x;
-                                succs[i] = x.forward[i];
+                                preds[i] = x; //assign new predecessor at level i
+                                succs[i] = x.forward[i]; //assign new successor at level i
                             }
                         }
                         if (hittail) break;
@@ -148,7 +149,7 @@ namespace C5.concurrent
                     if (hittail) continue;
                 }
                 bool breaking = false;
-                while (l <= lvl)
+                while (l <= lvl) //continue until all levels are inserted
                 {
                     lock (preds[l].nodeLock)
                     {
@@ -157,34 +158,34 @@ namespace C5.concurrent
                         lock (curr.nodeLock)
                         {
                             if (curr.marked) return true;
-                            while (l <= lvl && l <= pred.level)
+                            while (l <= lvl && l <= pred.level) //insert new node into single predecessor until l is not as big as lvl and until l matches predecessor level
                             {
                                 if (Validate(pred, succs[l], l, item))
                                 {
-                                    Node[] newfor = new Node[l + 1];
-                                    for (int i = 0; i < curr.forward.Length; i++)
+                                    Node[] newfor = new Node[l + 1]; //create array of size l
+                                    for (int i = 0; i < curr.forward.Length; i++) //copy references to new array
                                         newfor[i] = curr.forward[i];
-                                    Interlocked.Exchange(ref newfor[l], succs[l]);
-                                    Interlocked.Exchange(ref curr.forward, newfor);
-                                    Interlocked.Exchange(ref pred.forward[l], curr);
+                                    Interlocked.Exchange(ref newfor[l], succs[l]); //add successor at level l to the new array
+                                    Interlocked.Exchange(ref curr.forward, newfor); //assign new array to be curr.forward
+                                    Interlocked.Exchange(ref pred.forward[l], curr); //assign predecessor at level l to poin to new node
                                     if (l == 0)
                                     {
                                         Interlocked.Increment(ref size);
                                         initialInsert = true;
                                     }
-                                    curr.level = l;
-                                    if (curr.level == lvl)
+                                    curr.level = l; //number of levels curr node is linked in
+                                    if (curr.level == lvl) //all levels have been isnerted
                                         return true;
-                                    l++;
+                                    l++; //next level
                                 }
                                 else
                                 {
                                     breaking = true;
-                                    break;
+                                    break; //exit while loop
                                 }
                             }
                             if (breaking)
-                                break;
+                                break; //exit while loopp and restart
                         }
                     }
                 }
@@ -212,66 +213,81 @@ namespace C5.concurrent
 
                 lock (preds[0].nodeLock)
                 {
-                    if (preds[0].marked || preds[0].tail || preds[0].level < 0 || (curr = preds[0].forward[0]).tail)
-                        continue;
-                    lock (curr.nodeLock)
+                    if (!preds[0].marked && !preds[0].tail && preds[0].level >= 0 && !(curr = preds[0].forward[0]).tail) //check if predecessor fulfills constrains and get curr node
                     {
-                        if (curr.tail || !curr.forward[0].tail)
+                        lock (curr.nodeLock)
                         {
-                            curr = null;
-                            continue;
+                            if (!curr.tail && curr.forward[0].tail)
+                            {
+                                l = curr.level; //get node's number of levels
+                            }
+                            else
+                            {
+                                curr = null;
+                                continue;
+                            }
                         }
-                        l = curr.level;
                     }
+                    else continue;
                 }
+
                 bool breaking = false;
-                while (true)
+                while (true) //proceed until all levels are inserted or sychcronization conflict os detected
                 {
                     lock (preds[l].nodeLock)
                     {
-                        if (preds[l].tail || !curr.forward[0].tail || preds[l].level < 0)
+                        if (!preds[l].tail && preds[l].level >= 0)
                         {
-                            curr = null;
-                            break;
-                        }
-                        lock (curr.nodeLock)
-                        {
+                            lock (curr.nodeLock)
+                            {
 
-                            if (curr.tail || !curr.forward[0].tail || curr.level < 0)
-                            {
-                                curr = null;
-                                break;
-                            }
-                            if (curr.level != l) //new stuff
-                            {
-                                l = curr.level;
-                                continue;
-                            }
-                            while (true)
-                            {
-                                if (ValidatePred(preds[l], curr, l) && curr.Equals(succs[l]))
+                                if (!curr.tail && curr.forward[0].tail && curr.level >= 0)
                                 {
-                                    curr.marked = true;
-                                    Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
-                                    curr.level = --l;
-                                    if (l == -1)
+                                    if (curr.level == l)
                                     {
-                                        Interlocked.Decrement(ref size);
-                                        return curr.value;
+                                        while (true) //proceed unlti predecessors at level l and l-1 are the same
+                                        {
+                                            if (ValidatePred(preds[l], curr, l) && curr.Equals(succs[l])) //validate
+                                            {
+                                                curr.marked = true; //logically delete
+                                                Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
+                                                curr.level = --l;
+                                                if (l == -1) //curr have been removed from all levels
+                                                {
+                                                    Interlocked.Decrement(ref size);
+                                                    return curr.value;
+                                                }
+                                                if (!preds[l + 1].Equals(preds[l])) //predecessor at level l+1 is not the same at level l
+                                                    break; //proceed with locking on another predecessor
+                                            }
+                                            else
+                                            {
+                                                breaking = true;
+                                                break; //restart serach
+                                            }
+                                        }
                                     }
-                                    if (!preds[l + 1].Equals(preds[l]))
-                                        break;
+                                    else
+                                    {
+                                        l = curr.level; //get new level
+                                        continue; //proceed with new level
+                                    }
                                 }
                                 else
                                 {
-                                    breaking = true;
-                                    break;
+                                    curr = null;
+                                    break; //restart search
                                 }
                             }
                         }
+                        else
+                        {
+                            curr = null;
+                            break; //restart search
+                        }
+
                     }
-                    if (breaking)
-                        break;
+                    if (breaking) break; //restart search
                 }
             }
         }
