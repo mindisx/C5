@@ -35,7 +35,7 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 10000, 100000 };
+            config.NumberOfElements = new[] { 10000, 50000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -61,10 +61,11 @@ namespace Benchmark
             config.HuntLockDEPQv1 = false;
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = false;
-            config.GlobalLockSkipList = true;
-            config.LothanShavitSkipList = false;
-            config.HellerSkipListv1 = true;
-            config.HellerSkipListv2 = true;
+            config.GlobalLockSkipList = false;
+            config.LothanShavitSkipList = true;
+            config.LotanShavitSkipListv2 = true;
+            config.HellerSkipListv1 = false;
+            config.HellerSkipListv2 = false;
 
 
             RunBenchmark();// Run the benchmark
@@ -234,6 +235,15 @@ namespace Benchmark
                         datafile.Log("\n\n" + "LothanShavitSkipList");
                         new Benchmark().BenchMark(config, typeof(LotanShavitSkiplist<int>));
                         Console.WriteLine("LothanShavitSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
+
+                    if (config.LotanShavitSkipListv2)
+                    {
+                        datafile.Log("\n\n" + "LothanShavitSkipList_v2");
+                        new Benchmark().BenchMark(config, typeof(LotanShaviSkipList_v2<int>));
+                        Console.WriteLine("LothanShavitSkipList_v2 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
@@ -669,5 +679,7 @@ namespace Benchmark
 
         public long ExecutionTime { get; set; }
         public bool LothanShavitSkipList { get; internal set; }
+
+        public bool LotanShavitSkipListv2 { get; set; }
     }
 }
