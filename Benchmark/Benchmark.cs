@@ -35,7 +35,7 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 10000, 50000 };
+            config.NumberOfElements = new[] { 10000, 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -61,11 +61,12 @@ namespace Benchmark
             config.HuntLockDEPQv1 = false;
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = false;
-            config.GlobalLockSkipList = false;
-            config.LothanShavitSkipList = true;
-            config.LotanShavitSkipListv2 = true;
-            config.HellerSkipListv1 = false;
-            config.HellerSkipListv2 = false;
+            config.GlobalLockSkipList = true;
+            config.LothanShavitSkipList = false;
+            config.LotanShavitSkipListv2 = false;
+            config.HellerSkipListv1 = true;
+            config.HellerSkipListv2 = true;
+            config.SprayList = true;
 
 
             RunBenchmark();// Run the benchmark
@@ -266,6 +267,15 @@ namespace Benchmark
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
+
+                    if (config.HellerSkipListv2)
+                    {
+                        datafile.Log("\n\n" + "SprayList");
+                        new Benchmark().BenchMark(config, typeof(SprayList<int>));
+                        Console.WriteLine("SprayList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
                     datafile.Close();
 
                     gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / " + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/");
@@ -306,7 +316,14 @@ namespace Benchmark
                 //Inner loop that runs until standard deviation is below some threshold or it has done too many runs and throws an exception
                 while ((SecondsPerTestTimer.ElapsedMilliseconds / 1000.0) < ((config.SecondsPerTest * 1.0) / config.Threads[config.Threads.Length - 1]) || runs <= ((config.WarmupRuns) + config.Threads[0]))
                 {
-                    dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
+                    if (type.Equals(typeof(SprayList<int>)))
+                    {
+                        dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type, threadsToRun);
+                    }
+                    else
+                    {
+                        dictionary = (IConcurrentPriorityQueue<int>)Activator.CreateInstance(type);
+                    }
                     //dictionary = new GlobalLockDEPQ<int>(); // Create the correct dictionary for this run
 
                     // Get tree to correct size before we start, if applicable.  
@@ -319,7 +336,7 @@ namespace Benchmark
                         * i% insertions, d% deletions, and s% searches on keys drawn uniformly randomly from a key range of 
                         * size r, then the expected size of the tree in the steady state will be ri/(i+d)
                         */
-                        int r = (config.EndRangeRandom - config.StartRangeRandom) * 2; // double the range  
+                        int r = (config.EndRangeRandom - config.StartRangeRandom) * 4; // double the range  
                         int steadyStateSize = config.CurrentNumberOfElements / 2;
 
                         if (config.CurrentPercentageInsert > 0 && config.CurrentPercentageDeleteMin > 0 && config.CurrentPercentageDeleteMax > 0)
@@ -681,5 +698,6 @@ namespace Benchmark
         public bool LothanShavitSkipList { get; internal set; }
 
         public bool LotanShavitSkipListv2 { get; set; }
+        public bool SprayList { get; internal set; }
     }
 }
