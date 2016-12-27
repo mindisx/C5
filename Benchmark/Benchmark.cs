@@ -34,8 +34,8 @@ namespace Benchmark
             // Create a config object and set the values
             // TEST RUN
             config.WarmupRuns = 2;
-            config.Threads = new[] { 1, 2, 4, 6, 8 };
-            config.NumberOfElements = new[] { 10000, 100000 };
+            config.Threads = new[] { 1, 2, 4, 6, 8, 10, 12 };
+            config.NumberOfElements = new[] { 10000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -57,16 +57,16 @@ namespace Benchmark
             //config.PercentageDelete = new[] { 0, 10, 15, 40 };
             //config.Prefill = true;
 
-            config.GlobalLockDEPQ = false;
-            config.HuntLockDEPQv1 = false;
+            config.GlobalLockDEPQ = true;
+            config.HuntLockDEPQv1 = true;
             config.HuntLockDEPQv2 = false;
-            config.HuntLockDEPQv3 = false;
-            config.GlobalLockSkipList = true;
+            config.HuntLockDEPQv3 = true;
+            config.GlobalLockSkipList = false;
             config.LothanShavitSkipList = false;
             config.LotanShavitSkipListv2 = false;
-            config.HellerSkipListv1 = true;
-            config.HellerSkipListv2 = true;
-            config.SprayList = true;
+            config.HellerSkipListv1 = false;
+            config.HellerSkipListv2 = false;
+            config.SprayList = false;
 
 
             RunBenchmark();// Run the benchmark
@@ -268,7 +268,7 @@ namespace Benchmark
                         numberOfTests += 1;
                     }
 
-                    if (config.HellerSkipListv2)
+                    if (config.SprayList)
                     {
                         datafile.Log("\n\n" + "SprayList");
                         new Benchmark().BenchMark(config, typeof(SprayList<int>));

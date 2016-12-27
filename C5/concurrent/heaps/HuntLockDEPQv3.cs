@@ -252,7 +252,7 @@ namespace C5.concurrent
                                 Monitor.Enter(heap[r].intervalLock, ref rIntervalLockAcquired);
                             try
                             {
-                                if (lIntervalLockAcquired && heap[l].lastTag == Empty)
+                                if (lIntervalLockAcquired && heap[l].firstTag == Empty)
                                     break;
 
                                 if (lIntervalLockAcquired && heap[l].lastTag != Empty)  //if lock was aquired and left child has min and max element

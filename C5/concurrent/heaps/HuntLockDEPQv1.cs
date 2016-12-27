@@ -169,7 +169,6 @@ namespace C5.concurrent
                     }
 
                     s = s - 1;//minus 1, due to grab above
-                    int d = (int)Math.Log(s, 2);
                     int r = s - 1; //point to last element 
                     int l = (r + 1) / 2; //get right element, next to parent
                     bool[] locksAcquired = new bool[(r - l) + 1];
@@ -500,7 +499,124 @@ namespace C5.concurrent
 
         public T FindMax()
         {
-            throw new NotImplementedException();
+
+            T retval;
+            int maxIndex = -1;
+            bool globalLockAcquired = false;
+            Monitor.Enter(globallock, ref globalLockAcquired);
+            try
+            {
+                if (size == 0)
+                {
+                    throw new NoSuchItemException();
+                }
+                if (size == 1)
+                {
+                    lock (minheap[0].intervalLock)
+                    {
+                        if (globalLockAcquired)
+                        {
+                            Monitor.Exit(globallock);
+                            globalLockAcquired = false;
+                        }
+                        return minheap[0].element;
+                    }
+                }
+
+                if (size == 2)
+                {
+                    lock (minheap[0].intervalLock)
+                        lock (minheap[1].intervalLock)
+                        {
+                            if (globalLockAcquired)
+                            {
+                                Monitor.Exit(globallock);
+                                globalLockAcquired = false;
+                            }
+                            return minheap[1].element;
+                        }
+                }
+
+                if (size == 3)
+                {
+                    lock (minheap[1].intervalLock)
+                        lock (minheap[2].intervalLock)
+                        {
+                            if (globalLockAcquired)
+                            {
+                                Monitor.Exit(globallock);
+                                globalLockAcquired = false;
+                            }
+                            if (comparer.Compare(minheap[1].element, minheap[2].element) > 0)
+                                return minheap[1].element;
+                            else
+                                return minheap[2].element;
+                        }
+                }
+                else
+                {
+                    int s = size;
+                    int r = s - 1; //point to last element 
+                    int l = (r + 1) / 2; //get right element, next to parent
+                    bool[] locksAcquired = new bool[(r - l) + 1];
+                    for (int i = l; i <= r; i++)
+                    {
+                        Monitor.Enter(locks[i], ref locksAcquired[i - l]);
+                    }
+                    try
+                    {
+                        if (globalLockAcquired)
+                        {
+                            Monitor.Exit(globallock);
+                            globalLockAcquired = false;
+                        }
+                        maxIndex = l;
+                        for (int i = l + 1; i <= r; i++)
+                        {
+                            if (comparer.Compare(minheap[i].element, minheap[maxIndex].element) > 0)
+                            {
+                                if (locksAcquired[maxIndex - l])
+                                {
+                                    Monitor.Exit(locks[maxIndex]);
+                                    locksAcquired[maxIndex - l] = false;
+                                }
+                                maxIndex = i;
+
+                            }
+                            else
+                            {
+                                if (locksAcquired[i - l])
+                                {
+                                    Monitor.Exit(locks[i]);
+                                    locksAcquired[i - l] = false;
+                                }
+                            }
+                        }
+
+                        return minheap[maxIndex].element;
+                    }
+                    finally
+                    {
+                        for (int i = 0; i < locksAcquired.Length; i++)
+                        {
+                            if (locksAcquired[i])
+                            {
+                                Monitor.Exit(locks[i + l]);
+                                locksAcquired[i] = true;
+                            }
+
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (globalLockAcquired)
+                {
+                    Monitor.Exit(globallock);
+                    globalLockAcquired = false;
+                }
+            }
         }
 
         public T FindMin()
