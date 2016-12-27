@@ -63,10 +63,12 @@ namespace Benchmark
             config.HuntLockDEPQv3 = true;
             config.GlobalLockSkipList = false;
             config.LothanShavitSkipList = false;
-            config.LotanShavitSkipListv2 = false;
+           
+            config.LotanShavitSkipListv2 = true;
+            config.RelaxedLotanShaitSkipList = true;
             config.HellerSkipListv1 = false;
             config.HellerSkipListv2 = false;
-            config.SprayList = false;
+            config.SprayList = true;
 
 
             RunBenchmark();// Run the benchmark
@@ -245,6 +247,15 @@ namespace Benchmark
                         datafile.Log("\n\n" + "LothanShavitSkipList_v2");
                         new Benchmark().BenchMark(config, typeof(LotanShaviSkipList_v2<int>));
                         Console.WriteLine("LothanShavitSkipList_v2 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        Console.WriteLine("Execution Time: " + config.ExecutionTime);
+                        numberOfTests += 1;
+                    }
+
+                    if (config.RelaxedLotanShaitSkipList)
+                    {
+                        datafile.Log("\n\n" + "RelaxedLotanShaitSkipList");
+                        new Benchmark().BenchMark(config, typeof(RelaxedLotanShavitSkipList<int>));
+                        Console.WriteLine("RelaxedLotanShaitSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
@@ -698,6 +709,11 @@ namespace Benchmark
         public bool LothanShavitSkipList { get; internal set; }
 
         public bool LotanShavitSkipListv2 { get; set; }
+
         public bool SprayList { get; internal set; }
+
+
+        public bool RelaxedLotanShaitSkipList { get; set; }
+
     }
 }
