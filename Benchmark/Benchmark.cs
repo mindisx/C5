@@ -245,7 +245,7 @@ namespace Benchmark
                     if (config.LotanShavitSkipListv2)
                     {
                         datafile.Log("\n\n" + "LothanShavitSkipList_v2");
-                        new Benchmark().BenchMark(config, typeof(LotanShaviSkipList_v2<int>));
+                        new Benchmark().BenchMark(config, typeof(LotanShavitSkipList_v2<int>));
                         Console.WriteLine("LothanShavitSkipList_v2 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
