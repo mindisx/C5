@@ -21,12 +21,12 @@ namespace C5.concurrent
             {
                 this.forward = new Node[level + 1];
                 this.value = value;
-                marked = false;
+                this.marked = false;
                 this.level = level;
             }
             public override string ToString()
             {
-                return string.Format("[{0} - {1}]", value, marked);
+                return string.Format("[{0} - {1} - {2} - {3}]", value, marked, tail, level);
             }
         }
 
@@ -192,6 +192,7 @@ namespace C5.concurrent
                 }
             }
         }
+
         public T DeleteMax()
         {
             if (header.forward[0].tail)
@@ -293,36 +294,385 @@ namespace C5.concurrent
             }
         }
 
+        //public T DeleteMax()
+        //{
+        //    Node curr = null;
+        //    int lvl = 0;
+        //    while (true)
+        //    {
+        //        if (header.forward[0].tail)
+        //            throw new NoSuchItemException();
+        //        Node[] preds = new Node[maxLevel];
+        //        Node x = header, next;
+        //        bool invalidNode = false;
+        //        if (curr == null)
+        //        {
+        //            for (int i = maxLevel - 1; i >= 0; i--)
+        //            {
+        //                while (!x.forward[i].tail && !x.forward[i].forward[i].tail)
+        //                    x = x.forward[i];
+        //                preds[i] = x;
+        //            }
+        //            lvl = (curr = x.forward[0]).level;
+        //        }
+        //        else
+        //        {
+        //            for (int i = maxLevel - 1; i >= 0; i--) //for each level
+        //            {
+        //                while (!(next = x.forward[i]).tail && comparer.Compare(next.value, curr.value) < 0) //skip nodes until a nodes with the same value as new node are found.
+        //                    x = next;
+        //                preds[i] = x; //fill with predecessors
+        //            }
+
+        //            if ((lvl = curr.level) < 0)
+        //            {
+        //                curr = null;
+        //                continue;
+        //            }
+
+        //            for (int i = lvl; i >= 0; i--) //for each level between lvl and l
+        //            {
+        //                x = preds[0]; //assing as predecessor at level l-1
+        //                if (x.tail)
+        //                {
+        //                    invalidNode = true;
+        //                    break;
+        //                }
+        //                while (!(next = x.forward[0]).tail && !curr.Equals(next)) //skip nodes until new node is found
+        //                {
+        //                    x = next;
+        //                    if (x.tail && x.Equals(curr))
+        //                    {
+        //                        invalidNode = true;
+        //                        break;
+        //                    }
+        //                    if (x.level >= i) //if x node has number of levels at least as i 
+        //                        preds[i] = x; //assign new predecessor at level i
+        //                }
+        //                if (invalidNode) break;
+        //            }
+        //            if (invalidNode)
+        //            {
+        //               // curr = null;
+        //                continue;
+        //            }
+        //        }
+
+        //        if (curr.level < 0)
+        //        {
+        //            curr = null;
+        //            continue;
+        //        }
+        //        bool breaking = false;
+        //        while (lvl >= 0)
+        //        {
+        //            lock (preds[lvl].nodeLock)
+        //            {
+        //                if (preds[lvl].level < 0)
+        //                    break;
+        //                lock (curr.nodeLock)
+        //                {
+        //                    if (!ValidateNode(curr) || lvl != curr.level)
+        //                    {
+        //                        curr = null;
+        //                        break;
+        //                    }
+
+        //                    while (true) //proceed unlti predecessors at level l and l-1 are the same
+        //                    {
+        //                        if (ValidatePred(preds[lvl], curr, lvl)) //validate
+        //                        {
+        //                            curr.marked = true; //logically delete
+        //                            Interlocked.Exchange(ref preds[lvl].forward[lvl], curr.forward[lvl]);
+        //                            curr.level = --lvl;
+        //                            if (lvl == -1) //curr have been removed from all levels
+        //                            {
+        //                                Interlocked.Decrement(ref size);
+        //                                return curr.value;
+        //                            }
+        //                            if (!preds[lvl + 1].Equals(preds[lvl])) //predecessor at level l+1 is not the same at level l
+        //                                break; //proceed with locking on another predecessor
+        //                        }
+        //                        else
+        //                        {
+        //                            breaking = true;
+        //                            break; //restart serach
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //            if (breaking)
+        //                break;
+        //        }
+        //    }
+        //}
+
+
+        //public T DeleteMax()
+        //{
+        //    if (header.forward[0].tail)
+        //        throw new NoSuchItemException();
+        //    int l = int.MaxValue;
+        //    Node curr = null;
+        //    while (true)
+        //    {
+        //        if (header.forward[0].tail)
+        //            throw new NoSuchItemException();
+        //        Node x = header;
+        //        Node[] preds = new Node[maxLevel], succs = new Node[maxLevel];
+        //        for (int i = maxLevel - 1; i >= 0; i--)
+        //        {
+        //            while (x.level >= 0 && !x.forward[i].tail && !x.forward[i].forward[i].tail)
+        //                x = x.forward[i];
+        //            preds[i] = x;
+        //            succs[i] = x.forward[i];
+        //        }
+
+        //        //lock (preds[0].nodeLock)
+        //        //{
+        //        //    if (!preds[0].marked && !preds[0].tail && preds[0].level >= 0 && !(curr = preds[0].forward[0]).tail) //check if predecessor fulfills constrains and get curr node
+        //        //    {
+        //        //        lock (curr.nodeLock)
+        //        //        {
+        //        //            if (!curr.tail && curr.forward[0].tail)
+        //        //            {
+        //        //                l = curr.level; //get node's number of levels
+        //        //            }
+        //        //            else
+        //        //            {
+        //        //                curr = null;
+        //        //                continue;
+        //        //            }
+        //        //        }
+        //        //    }
+        //        //    else continue;
+        //        //}
+
+
+        //        l = (curr = preds[0].forward[0]).level;
+        //        if (curr.level < 0)
+        //        {
+        //            curr = null;
+        //            continue;
+        //        }
+
+
+        //        bool breaking = false;
+        //        while (true) //proceed until all levels are inserted or sychcronization conflict os detected
+        //        {
+        //            lock (preds[l].nodeLock)
+        //            {
+        //                if (!preds[l].tail && preds[l].level >= 0)
+        //                {
+        //                    lock (curr.nodeLock)
+        //                    {
+
+        //                        if (!curr.tail && curr.forward[0].tail && curr.level >= 0)
+        //                        {
+        //                            if (curr.level == l)
+        //                            {
+        //                                while (true) //proceed unlti predecessors at level l and l-1 are the same
+        //                                {
+        //                                    if (ValidatePred(preds[l], curr, l) && curr.Equals(succs[l])) //validate
+        //                                    {
+
+        //                                        curr.marked = true; //logically delete
+        //                                        Interlocked.Exchange(ref preds[l].forward[l], curr.forward[l]);
+        //                                        curr.level = --l;
+        //                                        if (l == -1) //curr have been removed from all levels
+        //                                        {
+        //                                            Interlocked.Decrement(ref size);
+        //                                            return curr.value;
+        //                                        }
+        //                                        if (!preds[l + 1].Equals(preds[l])) //predecessor at level l+1 is not the same at level l
+        //                                            break; //proceed with locking on another predecessor
+        //                                    }
+        //                                    else
+        //                                    {
+        //                                        breaking = true;
+        //                                        break; //restart serach
+        //                                    }
+        //                                }
+        //                            }
+        //                            else
+        //                            {
+        //                                l = curr.level; //get new level
+        //                                continue; //proceed with new level
+        //                            }
+        //                        }
+        //                        else
+        //                        {
+        //                            curr = null;
+        //                            break; //restart search
+        //                        }
+        //                    }
+        //                }
+        //                else
+        //                {
+        //                    curr = null;
+        //                    break; //restart search
+        //                }
+
+        //            }
+        //            if (breaking) break; //restart search
+        //        }
+        //    }
+        //}
+        //public T DeleteMax()
+        //{
+        //    int lvl = 0;
+        //    Node curr = null;
+
+        //    while (true)
+        //    {
+        //        if (header.forward[0].tail)
+        //            throw new NoSuchItemException();
+
+        //        if (curr == null)
+        //        {
+        //            curr = GetMaxNode();
+        //        }
+
+        //        Node next, x = header;
+        //        Node[] preds = new Node[maxLevel];
+        //        bool invalidNode = false;
+        //        for (int i = maxLevel - 1; i >= 0; i--) //for each level
+        //        {
+        //            while (!(next = x.forward[i]).tail && comparer.Compare(next.value, curr.value) < 0) //skip nodes until a nodes with the same value as new node are found.
+        //                x = next;
+        //            preds[i] = x; //fill with predecessors
+        //        }
+
+        //        if ((lvl = curr.level) < 0)
+        //        {
+        //            curr = null;
+        //            continue;
+        //        }
+
+        //        for (int i = lvl; i >= 0; i--) //for each level between lvl and l
+        //        {
+        //            x = preds[0]; //assing as predecessor at level l-1
+        //            if (x.tail)
+        //            {
+        //                invalidNode = true;
+        //                break;
+        //            }
+        //            while (!(next = x.forward[0]).tail && !curr.Equals(next)) //skip nodes until new node is found
+        //            {
+        //                x = next;
+        //                if (x.tail || x.Equals(curr) || curr.level < 0)
+        //                {
+        //                    invalidNode = true;
+        //                    break;
+        //                }
+        //                if (x.level >= i) //if x node has number of levels at least as i 
+        //                    preds[i] = x; //assign new predecessor at level i
+        //            }
+        //            if (invalidNode) break;
+        //        }
+        //        if (invalidNode || curr.level < 0)
+        //        {
+        //            curr = null;
+        //            continue;
+        //        }
+
+        //        bool breaking = false;
+        //        while (lvl >= 0)
+        //        {
+        //            lock (preds[lvl].nodeLock)
+        //            {
+        //                if (!preds[lvl].tail && preds[lvl].level >= 0)
+        //                {
+        //                    lock (curr.nodeLock)
+        //                    {
+        //                        if (!ValidateNode(curr) || lvl != curr.level)
+        //                        {
+        //                            curr = null;
+        //                            break;
+        //                        }
+
+        //                        while (true) //proceed unlti predecessors at level l and l-1 are the same
+        //                        {
+        //                            if (ValidatePred(preds[lvl], curr, lvl)) //validate
+        //                            {
+        //                                curr.marked = true; //logically delete
+        //                                Interlocked.Exchange(ref preds[lvl].forward[lvl], curr.forward[lvl]);
+        //                                curr.level = --lvl;
+        //                                if (lvl == -1) //curr have been removed from all levels
+        //                                {
+        //                                    Interlocked.Decrement(ref size);
+        //                                    return curr.value;
+        //                                }
+        //                                if (!preds[lvl + 1].Equals(preds[lvl])) //predecessor at level l+1 is not the same at level l
+        //                                    break; //proceed with locking on another predecessor
+        //                            }
+        //                            else
+        //                            {
+        //                                breaking = true;
+        //                                break; //restart serach
+        //                            }
+        //                        }
+        //                    }
+        //                }
+        //                else
+        //                {
+        //                    break;
+        //                }
+        //            }
+        //            if (breaking)
+        //                break;
+        //        }
+        //    }
+        //}
+
+        private Node GetMaxNode()
+        {
+            int minSkips = (int)(1 + (p * Math.Pow(Math.Log(p), 3)));
+            int currentSkips = 0;
+            Node next, x = header;
+            do
+            {
+                x = header;
+                for (int i = maxLevel - 1; i >= 0; i--)
+                {
+                    while (currentSkips <= minSkips && !(next = x.forward[i]).tail && !next.forward[i].tail)
+                    {
+                        x = next;
+                        currentSkips++;
+                    }
+
+                    if (currentSkips > minSkips)
+                        while (!(next = x.forward[i]).tail && !next.forward[i].tail && !next.forward[i].forward[i].tail && !next.forward[i].forward[i].marked)
+                            x = next;
+                }
+            } while (x.marked || x.level < 0 || x.tail || x.Equals(header));
+            return x;
+        }
+
         public T DeleteMin()
         {
-            if (header.forward[0].tail)
-                throw new NoSuchItemException();
             Node curr = null;
             int lvl = 0;
             while (true)
             {
+                if (header.forward[0].tail)
+                    throw new NoSuchItemException();
                 if (curr == null)
                 {
                     int d = D(true);
                     int h = H(2, d);
                     int l = L(1);
                     curr = Spray(h, l, d);
-                }
-                if (curr.Equals(header) || curr.tail || curr.level < 0)
-                {
-                    curr = null;
-                    continue;
-                }
 
+                }
                 Node[] preds = new Node[maxLevel];
                 Node x = header, next;
-                bool hittail = false;
+                bool invalidNode = false;
                 for (int i = maxLevel - 1; i >= 0; i--) //for each level
                 {
                     while (!(next = x.forward[i]).tail && comparer.Compare(next.value, curr.value) < 0) //skip nodes until a nodes with the same value as new node are found.
                         x = next;
                     preds[i] = x; //fill with predecessors
-
                 }
 
                 if ((lvl = curr.level) < 0)
@@ -334,78 +684,127 @@ namespace C5.concurrent
                 for (int i = lvl; i >= 0; i--) //for each level between lvl and l
                 {
                     x = preds[0]; //assing as predecessor at level l-1
-                    if (x.tail) continue;
-                    while (curr.level >= 0 && !(next = x.forward[0]).tail && !curr.Equals(next)) //skip nodes until new node is found
+                    if (x.tail)
+                    {
+                        invalidNode = true;
+                        break;
+                    }
+                    while (!(next = x.forward[0]).tail && !curr.Equals(next)) //skip nodes until new node is found
                     {
                         x = next;
                         if (x.tail && x.Equals(curr))
                         {
-                            hittail = true;
+                            invalidNode = true;
                             break;
                         }
                         if (x.level >= i) //if x node has number of levels at least as i 
-                        {
                             preds[i] = x; //assign new predecessor at level i
-                        }
                     }
-                    if (hittail) break;
+                    if (invalidNode) break;
                 }
-                if (hittail) continue;
-
-                if (curr.level < 0)
+                if (invalidNode)
                 {
-                    curr = null;
+                    //curr = null;
                     continue;
                 }
 
                 bool breaking = false;
-                while (lvl >= 0)
+                while (true) //proceed until all levels are inserted or sychcronization conflict os detected
                 {
                     lock (preds[lvl].nodeLock)
                     {
-                        lock (curr.nodeLock)
+                        if (!preds[lvl].tail && preds[lvl].level >= 0)
                         {
-                            if (curr.tail)
+                            lock (curr.nodeLock)
                             {
-                                curr = null;
-                                break;
-                            }
-                            if (curr.level < 0)
-                            {
-                                curr = null;
-                                break;
-                            }
-                            if (lvl != curr.level)
-                            {
-                                lvl = curr.level;
-                                continue;
-                            }
-                            while (true) //proceed unlti predecessors at level l and l-1 are the same
-                            {
-                                if (ValidatePred(preds[lvl], curr, lvl)) //validate
+                                if (ValidateNode(curr))
                                 {
-                                    curr.marked = true; //logically delete
-                                    Interlocked.Exchange(ref preds[lvl].forward[lvl], curr.forward[lvl]);
-                                    curr.level = --lvl;
-                                    if (lvl == -1) //curr have been removed from all levels
+                                    if (curr.level == lvl)
                                     {
-                                        Interlocked.Decrement(ref size);
-                                        return curr.value;
+                                        while (true) //proceed unlti predecessors at level l and l-1 are the same
+                                        {
+                                            if (ValidatePred(preds[lvl], curr, lvl)) //validate
+                                            {
+                                                curr.marked = true; //logically delete
+                                                Interlocked.Exchange(ref preds[lvl].forward[lvl], curr.forward[lvl]);
+                                                curr.level = --lvl;
+                                                if (lvl == -1) //curr have been removed from all levels
+                                                {
+                                                    Interlocked.Decrement(ref size);
+                                                    return curr.value;
+                                                }
+                                                if (!preds[lvl + 1].Equals(preds[lvl])) //predecessor at level l+1 is not the same at level l
+                                                    break; //proceed with locking on another predecessor
+                                            }
+                                            else
+                                            {
+                                                breaking = true;
+                                                break; //restart serach
+                                            }
+                                        }
                                     }
-                                    if (!preds[lvl + 1].Equals(preds[lvl])) //predecessor at level l+1 is not the same at level l
-                                        break; //proceed with locking on another predecessor
+                                    else
+                                    {
+                                        lvl = curr.level; //get new level
+                                        continue; //proceed with new level
+                                    }
                                 }
                                 else
                                 {
-                                    breaking = true;
-                                    break; //restart serach
+                                    curr = null;
+                                    break; //restart search
                                 }
                             }
                         }
+                        else
+                        {
+                            //curr = null;
+                            break; //restart search
+                        }
+
                     }
-                    if (breaking)
-                        break;
+                    if (breaking) break; //restart search
                 }
+
+                //bool breaking = false;
+                //while (lvl >= 0)
+                //{
+                //    lock (preds[lvl].nodeLock)
+                //    {
+
+                //        lock (curr.nodeLock)
+                //        {
+                //            if (!ValidateNode(curr) && lvl != curr.level)
+                //            {
+                //                curr = null;
+                //                break;
+                //            }
+                //            while (true) //proceed unlti predecessors at level l and l-1 are the same
+                //            {
+                //                if (ValidatePred(preds[lvl], curr, lvl)) //validate
+                //                {
+                //                    curr.marked = true; //logically delete
+                //                    Interlocked.Exchange(ref preds[lvl].forward[lvl], curr.forward[lvl]);
+                //                    curr.level = --lvl;
+                //                    if (lvl == -1) //curr have been removed from all levels
+                //                    {
+                //                        Interlocked.Decrement(ref size);
+                //                        return curr.value;
+                //                    }
+                //                    if (!preds[lvl + 1].Equals(preds[lvl])) //predecessor at level l+1 is not the same at level l
+                //                        break; //proceed with locking on another predecessor
+                //                }
+                //                else
+                //                {
+                //                    breaking = true;
+                //                    break; //restart serach
+                //                }
+                //            }
+                //        }
+                //    }
+                //    if (breaking)
+                //        break;
+                //}
             }
         }
 
@@ -419,9 +818,10 @@ namespace C5.concurrent
                 Node curr = null;
                 for (int i = maxLevel - 1; i >= 0; i--)
                 {
-                    while (!(curr = x.forward[i]).tail && !curr.forward[i].tail)
-                        x = curr;
+                    while (!x.forward[i].tail && !x.forward[i].marked && !x.forward[i].forward[i].tail)
+                        curr = x = x.forward[i];
                 }
+                if (curr == null) continue;
                 if (curr.forward[0].tail)
                 {
                     if (curr.tail)
@@ -450,7 +850,7 @@ namespace C5.concurrent
 
         private int randomLevel()
         {
-            Random rng = new Random();
+            Random rng = new Random(Environment.TickCount + Thread.CurrentThread.ManagedThreadId);
             int level = 0;
             int p = 1;
             while (rng.Next(2) < p && level < maxLevel - 1)
@@ -460,9 +860,9 @@ namespace C5.concurrent
 
         private bool Validate(Node pred, Node succ, int level, T item)
         {
-            if (succ.tail && !pred.marked && pred.forward[level].Equals(succ) && comparer.Compare(pred.value, item) <= 0)
+            if (succ.tail && !pred.marked && pred.level >= 0 && succ.level >= 0 && pred.forward[level].Equals(succ) && comparer.Compare(pred.value, item) <= 0)
                 return true;
-            if (!succ.tail && !pred.marked && !succ.marked && pred.forward[level].Equals(succ) &&
+            if (!succ.tail && !pred.marked && pred.level >= 0 && succ.level >= 0 && !succ.marked && pred.forward[level].Equals(succ) &&
                 comparer.Compare(pred.value, item) <= 0 && comparer.Compare(succ.value, item) >= 0)
                 return true;
             return false;
@@ -470,7 +870,27 @@ namespace C5.concurrent
 
         private bool ValidatePred(Node pred, Node succ, int level)
         {
-            if (!succ.tail && !pred.marked && pred.forward[level].Equals(succ))
+            if (!succ.tail && !pred.marked && pred.level >= 0 && succ.level >= 0 && pred.forward[level].Equals(succ))
+                return true;
+            return false;
+        }
+
+        private bool ValidateUnmarked(Node pred, Node succ, int level)
+        {
+            if (!succ.tail && !pred.marked && pred.level >= 0 && succ.level >= 0 && !succ.marked && pred.forward[level].Equals(succ))
+                return true;
+            return false;
+        }
+        //private bool ValidateMarked(Node pred, Node succ, int level)
+        //{
+        //    if (!succ.tail && !pred.marked && pred.level >= 0 && succ.marked && succ.level >= 0 && succ.pid == Thread.CurrentThread.ManagedThreadId && pred.forward[level].Equals(succ))
+        //        return true;
+        //    return false;
+        //}
+
+        private bool ValidateNode(Node n)
+        {
+            if (!n.tail && n.level >= 0)
                 return true;
             return false;
         }
@@ -501,21 +921,26 @@ namespace C5.concurrent
             return L == 0 ? 1 : L;
         }
 
+
         private Node Spray(int H, int L, int D)
         {
-            Random rng = new Random();
+            Random rng = new Random(Environment.TickCount + Thread.CurrentThread.ManagedThreadId);
             Node x = header;
-            int l = H;
-            while (l >= 0)
+            do
             {
-                int j = rng.Next(0, L + 1);
-                while (j > 0)
+                x = header;
+                int l = H;
+                while (l >= 0)
                 {
-                    x = x.forward[l];
-                    j--;
+                    int j = rng.Next(0, L + 1);
+                    while (j > 0 && !x.forward[l].tail)
+                    {
+                        x = x.forward[l];
+                        j--;
+                    }
+                    l = l - D;
                 }
-                l = l - D;
-            }
+            } while (x.marked || x.level < 0 || x.tail || x.Equals(header));
             return x;
         }
     }
