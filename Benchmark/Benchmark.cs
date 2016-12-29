@@ -57,17 +57,18 @@ namespace Benchmark
             //config.PercentageDelete = new[] { 0, 10, 15, 40 };
             //config.Prefill = true;
 
-            config.GlobalLockDEPQ = true;
-            config.HuntLockDEPQv1 = true;
+            config.GlobalLockDEPQ = false;
+            config.HuntLockDEPQv1 = false;
             config.HuntLockDEPQv2 = false;
-            config.HuntLockDEPQv3 = true;
+            config.HuntLockDEPQv3 = false;
+
             config.GlobalLockSkipList = false;
             config.LothanShavitSkipList = false;
-           
-            config.LotanShavitSkipListv2 = true;
-            config.RelaxedLotanShaitSkipList = true;
+            config.LotanShavitSkipListv2 = false;
+            config.RelaxedLotanShavitSkipList = true;
+
             config.HellerSkipListv1 = false;
-            config.HellerSkipListv2 = false;
+            config.HellerSkipListv2 = true;
             config.SprayList = true;
 
 
@@ -244,18 +245,18 @@ namespace Benchmark
 
                     if (config.LotanShavitSkipListv2)
                     {
-                        datafile.Log("\n\n" + "LothanShavitSkipList_v2");
-                        new Benchmark().BenchMark(config, typeof(LotanShaviSkipList_v2<int>));
-                        Console.WriteLine("LothanShavitSkipList_v2 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        datafile.Log("\n\n" + "LotanShavitSkipList_v2");
+                        new Benchmark().BenchMark(config, typeof(LotanShavitSkipList_v2<int>));
+                        Console.WriteLine("LotanShavitSkipList_v2 " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
 
-                    if (config.RelaxedLotanShaitSkipList)
+                    if (config.RelaxedLotanShavitSkipList)
                     {
-                        datafile.Log("\n\n" + "RelaxedLotanShaitSkipList");
-                        new Benchmark().BenchMark(config, typeof(RelaxedLotanShavitSkipList<int>));
-                        Console.WriteLine("RelaxedLotanShaitSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
+                        datafile.Log("\n\n" + "RelaxedLotanShavitSkipList");
+                        new Benchmark().BenchMark(config, typeof(RelaxedLotanShavitSkipList_v2<int>));
+                        Console.WriteLine("RelaxedLotanShavitSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
                     }
@@ -713,7 +714,7 @@ namespace Benchmark
         public bool SprayList { get; internal set; }
 
 
-        public bool RelaxedLotanShaitSkipList { get; set; }
+        public bool RelaxedLotanShavitSkipList { get; set; }
 
     }
 }

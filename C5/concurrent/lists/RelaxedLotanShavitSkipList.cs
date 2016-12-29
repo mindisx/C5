@@ -19,11 +19,9 @@ namespace C5.concurrent
             public Node[] forward;
             public int nodeLevel;
             public T value;
-            public long timeStamp;
             public int deleted;
             public object nodeLock;
             public object[] levelLock;
-            public int[] levelTag;
             public bool tail;
             public int pid;
 
@@ -33,13 +31,11 @@ namespace C5.concurrent
                 value = newValue;
                 this.tail = tail;
                 levelLock = new object[level];
-                levelTag = new int[level];
                 for (int i = 0; i < level; i++)
                 {
                     levelLock[i] = new object();
                 }
                 nodeLevel = forward.Length;
-                timeStamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
                 deleted = 0;
                 nodeLock = new object();
                 pid = 0;
@@ -62,7 +58,7 @@ namespace C5.concurrent
 
         public override string ToString()
         {
-            return string.Format("Time to mark the nodes: {0}, Time to fill update array: {1}, Time to reassign references: {2}", timeToMark/1000, timeToSearch/1000, timeToLock/1000);
+            return string.Format("Time to mark the nodes: {0}, Time to fill update array: {1}, Time to reassign references: {2}", timeToMark / 1000, timeToSearch / 1000, timeToLock / 1000);
         }
         public RelaxedLotanShavitSkipList() : this(32) { }
 
@@ -75,16 +71,14 @@ namespace C5.concurrent
             level = 1;
             header = new Node(maxLevel, default(T));
             //so the header dosen't get picked up and marked by the delete operations
-            header.timeStamp = DateTime.MaxValue.Ticks / TimeSpan.TicksPerMillisecond;
             header.deleted = 2;
             tail = new Node(0, default(T), true);
-            tail.timeStamp = DateTime.MaxValue.Ticks / TimeSpan.TicksPerMillisecond;
             tail.deleted = 2;
             for (int i = 0; i < maxLevel; i++)
             {
                 header.forward[i] = tail;
             }
-            random = new Random();
+
         }
 
         public int Count
@@ -120,25 +114,28 @@ namespace C5.concurrent
 
             int newLevel = RandomLevel();
             newNode = new Node(newLevel, item);
-            newNode.timeStamp = DateTime.MaxValue.Ticks / TimeSpan.TicksPerMillisecond;
             lock (newNode.nodeLock)
             {
                 for (int i = 0; i < newLevel; i++)
                 {
-                    node1 = getLock(update[i], item, i, ref lockTaken);
-
-                    newNode.forward[i] = node1.forward[i];
-                    node1.forward[i] = newNode;
-
-                    if (lockTaken)
+                    try
                     {
-                        Monitor.Exit(node1.levelLock[i]);
-                        lockTaken = false;
-                    }
+                        node1 = getLock(update[i], item, i, ref lockTaken);
 
+                        newNode.forward[i] = node1.forward[i];
+                        node1.forward[i] = newNode;
+                    }
+                    finally
+                    {
+                        if (lockTaken)
+                        {
+                            Monitor.Exit(node1.levelLock[i]);
+                            lockTaken = false;
+                        }
+                    }
+                    
                 }
             }
-            newNode.timeStamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             Interlocked.Increment(ref size);
             return true;
         }
@@ -205,7 +202,7 @@ namespace C5.concurrent
 
         public T DeleteMax()
         {
-            
+
             if (header.forward[0].tail)
                 throw new NoSuchItemException();
 
@@ -217,12 +214,10 @@ namespace C5.concurrent
             Node[] update = new Node[maxLevel];
             Node[] update2 = new Node[maxLevel];
             bool lockTaken = false;
-            var start = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-            long searchTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
             while (true)
             {
-                
+
                 node1 = header;
                 for (int i = maxLevel - 1; i >= 0; i--)
                 {
@@ -232,22 +227,24 @@ namespace C5.concurrent
                     }
                 }
 
-                marked = Interlocked.Exchange(ref node1.deleted, 1);
-                if (marked == 0)
+
+                if ((Interlocked.Exchange(ref node1.deleted, 1)) == 0)
                 {
-                    Interlocked.Exchange(ref node1.pid, Thread.CurrentThread.ManagedThreadId);
+                    //Interlocked.Exchange(ref node1.pid, Thread.CurrentThread.ManagedThreadId);
                     break;
                 }
-                
+
 
             }
+            //var stop = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond) - start;
+            //Interlocked.Add(ref timeToMark, stop);
             retval = node1.value;
             retNode = node1;
-
+            // start = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             node1 = header;
             for (int i = maxLevel - 1; i >= 0; i--)
             {
-               
+
                 node2 = node1.forward[i];
                 while (!node2.tail && comparer.Compare(node2.value, retval) < 0)
                 {
@@ -256,27 +253,48 @@ namespace C5.concurrent
                 }
                 update[i] = node1;
             }
+            //local search for a specific element
+            for (int i = update.Length - 1; i >= 0; i--)
+            {
+                node2 = update[i];
+                while (!node2.tail && node2 != retNode)
+                {
+                    node1 = node2;
+                    node2 = node2.forward[i];
+                }
+                update2[i] = node1;
+            }
 
             node2 = retNode;
+
 
             lock (node2.nodeLock)
             {
                 for (int i = node2.forward.Length - 1; i >= 0; i--)
                 {
-                    node1 = getMaxLock(update[i], retval, i, ref lockTaken, node2);
+                    try
+                    {
+                        node1 = getMaxLock(update[i], retval, i, ref lockTaken, node2);
                         lock (node2.levelLock[i])
                         {
                             node1.forward[i] = node2.forward[i];
                             node2.forward[i] = node1;
                         }
-                    if (lockTaken)
-                    {
-                        Monitor.Exit(node1.levelLock[i]);
-                        lockTaken = false;
                     }
+                    finally
+                    {
+                        if (lockTaken)
+                        {
+                            Monitor.Exit(node1.levelLock[i]);
+                            lockTaken = false;
+                        }
+                    }
+                    
+                    
 
                 }
             }
+
             Interlocked.Decrement(ref size);
             return retval;
         }
@@ -292,17 +310,16 @@ namespace C5.concurrent
             Node node2;
             Node[] update = new Node[maxLevel];
             bool lockTaken = false;
-            var time = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
             while (true)
             {
                 node1 = header.forward[0];
                 while (!node1.tail && !node1.Equals(header))
                 {
-                    marked = Interlocked.Exchange(ref node1.deleted, 1);
-                    if (marked == 0)
+
+                    if ((Interlocked.Exchange(ref node1.deleted, 1)) == 0)
                     {
-                        Interlocked.Exchange(ref node1.pid, Thread.CurrentThread.ManagedThreadId);
+                        //Interlocked.Exchange(ref node1.pid, Thread.CurrentThread.ManagedThreadId);
                         break;
                     }
                     node1 = node1.forward[0];
@@ -313,11 +330,11 @@ namespace C5.concurrent
                 }
             }
 
+
+
             //SAVE the value of the node that we just marked for deletion
-            //########################
             retval = node1.value;
-            Node retNode = node1;
-            //#######################
+            Node temp = node1;
             node1 = header;
             for (int i = maxLevel - 1; i >= 0; i--)
             {
@@ -327,11 +344,16 @@ namespace C5.concurrent
                     node1 = node2;
                     node2 = node1.forward[i];
                 }
+                //while (!node2.isTail && node2 )
+                //{
+                //    node1 = node2;
+                //    node2 = node1.forward[i];
+                //}
                 update[i] = node1;
             }
             node2 = node1;
             //make sure we have a pointer to the right node
-            while (!node2.Equals(retNode))
+            while (!node2.Equals(temp))
             {
                 node2 = node2.forward[0];
             }
@@ -340,11 +362,8 @@ namespace C5.concurrent
             {
                 for (int i = node2.forward.Length - 1; i >= 0; i--)
                 {
-                    node1 = getMinLock(update[i], retval, i, ref lockTaken, retNode);
-                    if (!node1.forward[i].Equals(retNode))
-                    {
-                        throw new Exception("wrong predecessor, node1: " + node1 + " node2: " + node2);
-                    }
+                    node1 = getMinLock(update[i], retval, i, ref lockTaken, temp);
+
                     lock (node2.levelLock[i])
                     {
                         node1.forward[i] = node2.forward[i];
@@ -392,87 +411,6 @@ namespace C5.concurrent
 
         #region helpers
 
-        
-
-
-        private Node[] doSearch(Node head, T item, Node[] update)
-        {
-            Node x;
-            for (int i = head.forward.Length - 1; i >= 0; i--)
-            {
-                x = head.forward[i];
-                while (x.tail != true && comparer.Compare(x.value, item) <= 0)
-                {
-                    head = x;
-                    x = x.forward[i];
-                }
-                update[i] = head;
-            }
-            return update;
-        }
-
-        private Node[] maxSearch(Node head, Node[] update)
-        {
-            for (int i = head.forward.Length - 1; i >= 0; i--)
-            {
-                while (head.forward[i].tail != true && comparer.Compare(head.forward[i].value, head.value) >= 0)
-                {
-                    head = head.forward[i];
-                }
-                update[i] = head;
-            }
-            return update;
-        }
-        //search for the max node
-        private Node maxNodeSearch(Node head, long searchStartTime)
-        {
-            for (int i = head.forward.Length - 1; i >= 0; i--)
-            {
-                while (head.forward[i].tail != true && comparer.Compare(head.forward[i].value, head.value) >= 0)
-                {
-                    //optimisation idea: instead of traverisng all the levels, if the last level's forward pointer, points
-                    // to the tail, then we know this is the last element and we will return that. HOWEVER this might be an issue
-                    // combined with the timestamps, as, in a realistic exampel the last node will in fact not be the tail, but a node inserted
-                    // after the search began. 
-                    if (head.forward[0].tail == true || head.forward[0].timeStamp > searchStartTime)
-                    {
-                        return head;
-                    }
-                    head = head.forward[i];
-                }
-            }
-            return head;
-        }
-
-        //fills the update array
-        private Node[] doSearch(Node head, Node[] update)
-        {
-            for (int i = head.forward.Length - 1; i >= 0; i--)
-            {
-                while (head.forward[i].tail != true && comparer.Compare(head.forward[i].value, head.value) <= 0)
-                {
-                    head = head.forward[i];
-                }
-                update[i] = head;
-            }
-            return update;
-        }
-
-        private Node[] doSearch(Node head, Node findThis, Node[] update)
-        {
-            Node x = head;
-            for (int i = x.forward.Length - 1; i >= 0; i--)
-            {
-                while (x.forward[i].tail != true && comparer.Compare(x.forward[i].value, findThis.value) <= 0 && comparer.Compare(x.forward[i].value, x.value) >= 0)
-                {
-                    head = x;
-                    x = x.forward[i];
-                }
-                update[i] = head;
-            }
-            return update;
-        }
-
         private Node getLock(Node node1, T value, int lvl, ref bool firstlocktaken)
         {
             Node node2 = node1.forward[lvl];
@@ -499,7 +437,6 @@ namespace C5.concurrent
                     Monitor.Exit(node1.levelLock[lvl]);
                     firstlocktaken = false;
                 }
-                //tempNode = node2;
                 node1 = node2;
                 Monitor.Enter(node1.levelLock[lvl], ref firstlocktaken);
                 node2 = node1.forward[lvl];
@@ -510,7 +447,6 @@ namespace C5.concurrent
 
         private Node getMaxLock(Node node1, T value, int lvl, ref bool firstlocktaken, Node retNode)
         {
-            //var retNode = node1;
             Node node2 = node1.forward[lvl];
             while (!node2.tail && node2 != retNode)
             {
@@ -535,7 +471,6 @@ namespace C5.concurrent
                     Monitor.Exit(node1.levelLock[lvl]);
                     firstlocktaken = false;
                 }
-                //tempNode = node2;
                 node1 = node2;
                 Monitor.Enter(node1.levelLock[lvl], ref firstlocktaken);
                 node2 = node1.forward[lvl];
@@ -546,7 +481,6 @@ namespace C5.concurrent
 
         private Node getMinLock(Node node1, T value, int lvl, ref bool firstlocktaken, Node retNode)
         {
-            Node paramNode = node1;
             Node node2 = node1.forward[lvl];
             while (node2.tail != true && comparer.Compare(node2.value, value) <= 0 && node2 != retNode)
             {
@@ -571,7 +505,6 @@ namespace C5.concurrent
                     Monitor.Exit(node1.levelLock[lvl]);
                     firstlocktaken = false;
                 }
-                //tempNode = node2;
                 node1 = node2;
                 Monitor.Enter(node1.levelLock[lvl], ref firstlocktaken);
                 node2 = node1.forward[lvl];
@@ -581,41 +514,12 @@ namespace C5.concurrent
         }
 
 
-        private Node[] searchAndLock(Node head, T item, Node[] update)
-        {
-            for (int i = head.forward.Length - 1; i >= 0; i--)
-            {
-                Node node2 = head;
-                while (node2.forward[i] != null && comparer.Compare(node2.forward[i].value, item) <= 0)
-                {
-                    head = node2;
-                    node2 = head.forward[i];
-                }
-                Monitor.Enter(head.levelLock[i]);
-                update[i] = head;
-            }
-            return update;
-        }
 
-
-
-        private int ShavitRandomLevel()
-        {
-            var lvl = 1;
-            while (random.Next(2) == 1)
-            {
-                lvl++;
-            }
-            if (lvl > maxLevel)
-            {
-                return maxLevel;
-            }
-            return lvl;
-        }
         private int RandomLevel()
         {
+            var rng = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
             var lvl = 1;
-            while (random.Next(2) == 1 && lvl < maxLevel)
+            while (rng.Next(2) == 1 && lvl < maxLevel)
             {
                 lvl++;
             }
