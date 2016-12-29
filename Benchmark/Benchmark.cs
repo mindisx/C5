@@ -64,8 +64,8 @@ namespace Benchmark
 
             config.GlobalLockSkipList = false;
             config.LothanShavitSkipList = false;
-            config.LotanShavitSkipListv2 = true;
-            config.RelaxedLotanShavitSkipList = false;
+            config.LotanShavitSkipListv2 = false;
+            config.RelaxedLotanShavitSkipList = true;
 
             config.HellerSkipListv1 = false;
             config.HellerSkipListv2 = true;
@@ -255,7 +255,7 @@ namespace Benchmark
                     if (config.RelaxedLotanShavitSkipList)
                     {
                         datafile.Log("\n\n" + "RelaxedLotanShavitSkipList");
-                        new Benchmark().BenchMark(config, typeof(RelaxedLotanShavitSkipList<int>));
+                        new Benchmark().BenchMark(config, typeof(RelaxedLotanShavitSkipList_v2<int>));
                         Console.WriteLine("RelaxedLotanShavitSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;

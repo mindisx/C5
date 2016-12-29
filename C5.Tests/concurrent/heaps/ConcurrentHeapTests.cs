@@ -38,7 +38,7 @@ namespace C5UnitTests.concurrent
         IConcurrentPriorityQueue<int> queue;
 
         [SetUp]
-        public void Init() { queue = new LotanShaviSkipList_v2<int>(); }
+        public void Init() { queue = new RelaxedLotanShavitSkipList_v2<int>(); }
 
         [TearDown]
         public void Dispose() { queue = null; }
@@ -223,7 +223,7 @@ namespace C5UnitTests.concurrent
         [SetUp]
         public void Init()
         {
-            queue = new LotanShaviSkipList_v2<int>();
+            queue = new RelaxedLotanShavitSkipList_v2<int>();
             threadCount = Environment.ProcessorCount + 2;
             n = 10;
             prefill = true;
