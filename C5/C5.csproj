@@ -72,9 +72,6 @@
     <Compile Include="concurrent\lists\SkipList.cs" />
     <Compile Include="concurrent\lists\HellerSkipListv1.cs" />
     <Compile Include="concurrent\lists\SkipQueue.cs" />
-    <Compile Include="concurrent\lists\RelaxedLotanShavitSkipList_v2.cs" />
-    <Compile Include="concurrent\lists\SkipList.cs" />
-    <Compile Include="concurrent\lists\HellerSkipListv1.cs" />
     <Compile Include="concurrent\lists\SprayList.cs" />
     <Compile Include="EnumerableBase.cs" />
     <Compile Include="MemorySafeEnumerator.cs" />
