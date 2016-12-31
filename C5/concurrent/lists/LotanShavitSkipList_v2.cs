@@ -206,7 +206,7 @@ namespace C5.concurrent
             if (header.forward[0].tail)
                 throw new NoSuchItemException();
 
-            Node retNode;
+            Node temp;
             T retval;
             int marked = -1;
             Node node1;
@@ -235,17 +235,18 @@ namespace C5.concurrent
                         break;
                     }
                 }
-                
+                //reset timestamp and try again
+                //searchTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             }
 
             retval = node1.value;
-            retNode = node1;
+            temp = node1;
             node1 = header;
             for (int i = maxLevel - 1; i >= 0; i--)
             {
                
                 node2 = node1.forward[i];
-                while (!node2.tail && comparer.Compare(node2.value, retval) < 0)
+                while (!node2.tail && comparer.Compare(node2.value, temp.value) < 0)
                 {
                     node1 = node2;
                     node2 = node2.forward[i];
@@ -253,18 +254,18 @@ namespace C5.concurrent
                 update[i] = node1;
             }
             //local search for a specific element
-            for (int i = update.Length - 1; i >= 0; i--)
-            {
-                node2 = update[i];
-                while (!node2.tail && node2 != retNode)
-                {
-                    node1 = node2;
-                    node2 = node2.forward[i];
-                }
-                update2[i] = node1;
-            }
+            //for (int i = update.Length - 1; i >= 0; i--)
+            //{
+            //    node2 = update[i];
+            //    while (!node2.tail && node2 != retNode)
+            //    {
+            //        node1 = node2;
+            //        node2 = node2.forward[i];
+            //    }
+            //    update2[i] = node1;
+            //}
 
-            node2 = retNode;
+            node2 = temp;
 
             lock (node2.nodeLock)
             {
@@ -305,7 +306,7 @@ namespace C5.concurrent
             //stop = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond) - start;
             //Interlocked.Add(ref timeToLock, stop);
             Interlocked.Decrement(ref size);
-            return retval;
+            return node2.value;
         }
 
         public T DeleteMin()
@@ -344,6 +345,7 @@ namespace C5.concurrent
                 {
                     break;
                 }
+                //searchTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             }
             
 
@@ -381,7 +383,7 @@ namespace C5.concurrent
                 {
                     try
                     {
-                        node1 = getMinLock(update[i], retval, i, ref lockTaken, retNode);
+                        node1 = getMaxLock(update[i], retval, i, ref lockTaken, retNode);
                         lock (node2.levelLock[i])
                         {
                             node1.forward[i] = node2.forward[i];
@@ -509,7 +511,7 @@ namespace C5.concurrent
         private Node getMinLock(Node node1, T value, int lvl, ref bool firstlocktaken, Node retNode)
         {
             Node node2 = node1.forward[lvl];
-            while (!node2.tail && comparer.Compare(node2.value, value) <= 0 && !node2.Equals(retNode))
+            while (!node2.tail && !node2.Equals(retNode))
             {
                 node1 = node2;
                 node2 = node2.forward[lvl];
