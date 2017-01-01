@@ -207,7 +207,7 @@ namespace C5.concurrent
                 throw new NoSuchItemException();
 
             Node temp;
-            T retval;
+           // T retval;
             int marked = -1;
             Node node1;
             Node node2;
@@ -222,7 +222,8 @@ namespace C5.concurrent
                 node1 = header;
                 for (int i = maxLevel - 1; i >= 0; i--)
                 {
-                    while (!(node2 = node1.forward[i]).tail && node2.deleted != 1 && !node2.Equals(header))
+                    //no 
+                    while (!(node2 = node1.forward[i]).tail)
                     {
                         node1 = node2;
                     }
@@ -239,7 +240,7 @@ namespace C5.concurrent
                 //searchTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
             }
 
-            retval = node1.value;
+            //retval = node1.value;
             temp = node1;
             node1 = header;
             for (int i = maxLevel - 1; i >= 0; i--)
@@ -273,7 +274,7 @@ namespace C5.concurrent
                 {
                     try
                     {
-                        node1 = getMaxLock(update[i], retval, i, ref lockTaken, node2);
+                        node1 = getDeleteLock(update[i], i, ref lockTaken, node2);
                         lock (node2.levelLock[i])
                         {
                             node1.forward[i] = node2.forward[i];
@@ -319,6 +320,7 @@ namespace C5.concurrent
             //taking the first element so the header will NOT be marked for deletion
             Node node1;
             Node node2;
+            Node temp;
             Node[] update = new Node[maxLevel];
             bool lockTaken = false;
             long searchTimestamp = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
@@ -352,7 +354,7 @@ namespace C5.concurrent
             //SAVE the value of the node that we just marked for deletion
             //########################
             retval = node1.value;
-            Node retNode = node1;
+            temp = node1;
             //#######################
             node1 = header;
             for (int i = maxLevel - 1; i >= 0; i--)
@@ -370,12 +372,12 @@ namespace C5.concurrent
                 //}
                 update[i] = node1;
             }
-            node2 = node1;
+            node2 = temp;
             //make sure we have a pointer to the right node
-            while (!node2.Equals(retNode))
-            {
-                node2 = node2.forward[0];
-            }
+            //while (!node2.Equals(temp))
+            //{
+            //    node2 = node2.forward[0];
+            //}
 
             lock (node2.nodeLock)
             {
@@ -383,7 +385,7 @@ namespace C5.concurrent
                 {
                     try
                     {
-                        node1 = getMaxLock(update[i], retval, i, ref lockTaken, retNode);
+                        node1 = getDeleteLock(update[i], i, ref lockTaken, temp);
                         lock (node2.levelLock[i])
                         {
                             node1.forward[i] = node2.forward[i];
@@ -480,7 +482,7 @@ namespace C5.concurrent
             return node1;
         }
 
-        private Node getMaxLock(Node node1, T value, int lvl, ref bool firstlocktaken, Node retNode)
+        private Node getDeleteLock(Node node1, int lvl, ref bool firstlocktaken, Node retNode)
         {
             Node node2 = node1.forward[lvl];
             while (!node2.tail && !node2.Equals(retNode))
