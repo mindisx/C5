@@ -35,7 +35,8 @@ namespace Benchmark
             // TEST RUN
             config.WarmupRuns = 2;
             config.Threads = new[] { 1, 2, 4, 6, 8, 10, 12 };
-            config.NumberOfElements = new[] { 10000 };
+
+            config.NumberOfElements = new[] { 10000, 100000 };
             config.MinRuns = 3;
             config.SecondsPerTest = 10;
             config.StartRangeRandom = 0;
@@ -44,32 +45,39 @@ namespace Benchmark
             config.PercentageDeleteMax = new[] { 10, 15 };
             config.Prefill = true; //NOTE: since we are testing on double ended queues, we need twize as many elements so we do not get NoSuchItemException
 
-            //CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
+            ////CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
             //config.WarmupRuns = 4;
             //config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
-            //config.Threads = new int[] { 1, 2 };
-            //config.NumberOfElements = new[] { 100000, 1000000 };
+            ////config.Threads = new int[] { 1, 2, 4};
+            //config.NumberOfElements = new[] { 1000000 };
+            ////config.NumberOfElements = new[] { 100000, 1000000 };
             //config.MinRuns = 3;
             //config.SecondsPerTest = 120;
-            //config.SecondsPerTest = 2;
+            ////config.SecondsPerTest = 3;
             //config.StartRangeRandom = 0;
-            //config.PercentageInsert = new[] { 0, 20, 35, 45 };
-            //config.PercentageDelete = new[] { 0, 10, 15, 40 };
-            //config.Prefill = true;
+            //config.PercentageInsert = new[] { 20, 35, 45 };
+            //config.PercentageDeleteMin = new[] { 10, 15, 20 };
+            //config.PercentageDeleteMax = new[] { 10, 15, 20 };
+            //Remeber to run this, as the bencmarking failed last time!
+            //config.NumberOfElements = new[] { 1000000 };
+            //config.PercentageInsert = new[] { 20 };
+            //config.PercentageDeleteMin = new[] { 10 };
+            //config.PercentageDeleteMax = new[] { 10 };
+            config.Prefill = true;
 
             config.GlobalLockDEPQ = false;
             config.HuntLockDEPQv1 = false;
             config.HuntLockDEPQv2 = false;
             config.HuntLockDEPQv3 = false;
 
-            config.GlobalLockSkipList = false;
+            config.GlobalLockSkipList = true;
             config.LothanShavitSkipList = false;
             config.LotanShavitSkipListv2 = false;
-            config.RelaxedLotanShavitSkipList = true;
+            config.RelaxedLotanShavitSkipList = false;
 
-            config.HellerSkipListv1 = false;
+            config.HellerSkipListv1 = true;
             config.HellerSkipListv2 = true;
-            config.SprayList = true;
+            config.SprayList = false;
 
 
             RunBenchmark();// Run the benchmark
@@ -255,7 +263,7 @@ namespace Benchmark
                     if (config.RelaxedLotanShavitSkipList)
                     {
                         datafile.Log("\n\n" + "RelaxedLotanShavitSkipList");
-                        new Benchmark().BenchMark(config, typeof(RelaxedLotanShavitSkipList_v2<int>));
+                        new Benchmark().BenchMark(config, typeof(RelaxedLotanShavitSkipList<int>));
                         Console.WriteLine("RelaxedLotanShavitSkipList " + elements + "_" + config.CurrentPercentageInsert + "_" + config.CurrentPercentageDeleteMin + "_" + config.CurrentPercentageDeleteMax);
                         Console.WriteLine("Execution Time: " + config.ExecutionTime);
                         numberOfTests += 1;
