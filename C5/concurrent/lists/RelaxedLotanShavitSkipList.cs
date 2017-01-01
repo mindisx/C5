@@ -54,12 +54,7 @@ namespace C5.concurrent
         int level;
         Node header, tail;
         Random random;
-        long timeToMark, timeToSearch, timeToLock;
 
-        public override string ToString()
-        {
-            return string.Format("Time to mark the nodes: {0}, Time to fill update array: {1}, Time to reassign references: {2}", timeToMark / 1000, timeToSearch / 1000, timeToLock / 1000);
-        }
         public RelaxedLotanShavitSkipList() : this(32) { }
 
         public RelaxedLotanShavitSkipList(int max)
@@ -70,7 +65,6 @@ namespace C5.concurrent
             size = 0;
             level = 1;
             header = new Node(maxLevel, default(T));
-            //so the header dosen't get picked up and marked by the delete operations
             header.deleted = 2;
             tail = new Node(0, default(T), true);
             tail.deleted = 2;
@@ -236,11 +230,10 @@ namespace C5.concurrent
 
 
             }
-            //var stop = (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond) - start;
-            //Interlocked.Add(ref timeToMark, stop);
+
             retval = node1.value;
             retNode = node1;
-            // start = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+
             node1 = header;
             for (int i = maxLevel - 1; i >= 0; i--)
             {
@@ -362,18 +355,26 @@ namespace C5.concurrent
             {
                 for (int i = node2.forward.Length - 1; i >= 0; i--)
                 {
-                    node1 = getMinLock(update[i], retval, i, ref lockTaken, temp);
+                    try
+                    {
+                        node1 = getMinLock(update[i], retval, i, ref lockTaken, temp);
 
-                    lock (node2.levelLock[i])
-                    {
-                        node1.forward[i] = node2.forward[i];
-                        node2.forward[i] = node1;
+                        lock (node2.levelLock[i])
+                        {
+                            node1.forward[i] = node2.forward[i];
+                            node2.forward[i] = node1;
+                        }
                     }
-                    if (lockTaken)
+                    finally
                     {
-                        Monitor.Exit(node1.levelLock[i]);
-                        lockTaken = false;
+                        if (lockTaken)
+                        {
+                            Monitor.Exit(node1.levelLock[i]);
+                            lockTaken = false;
+                        }
                     }
+                    
+                    
                 }
             }
             Interlocked.Decrement(ref size);
