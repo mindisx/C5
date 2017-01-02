@@ -45,12 +45,11 @@ namespace Benchmark
             config.PercentageDeleteMax = new[] { 10, 15 };
             config.Prefill = true; //NOTE: since we are testing on double ended queues, we need twize as many elements so we do not get NoSuchItemException
 
-            ////CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
+            //////CONFIG FOR HUGE TEST - Expected to take around 5 hours, should ask for 6 just in case
             //config.WarmupRuns = 4;
             //config.Threads = new int[] { 1, 3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60 };
             ////config.Threads = new int[] { 1, 2, 4};
-            //config.NumberOfElements = new[] { 1000000 };
-            ////config.NumberOfElements = new[] { 100000, 1000000 };
+            //config.NumberOfElements = new[] { 100000, 1000000 };
             //config.MinRuns = 3;
             //config.SecondsPerTest = 120;
             ////config.SecondsPerTest = 3;
@@ -58,12 +57,7 @@ namespace Benchmark
             //config.PercentageInsert = new[] { 20, 35, 45 };
             //config.PercentageDeleteMin = new[] { 10, 15, 20 };
             //config.PercentageDeleteMax = new[] { 10, 15, 20 };
-            //Remeber to run this, as the bencmarking failed last time!
-            //config.NumberOfElements = new[] { 1000000 };
-            //config.PercentageInsert = new[] { 20 };
-            //config.PercentageDeleteMin = new[] { 10 };
-            //config.PercentageDeleteMax = new[] { 10 };
-            config.Prefill = true;
+            //config.Prefill = true;
 
             config.GlobalLockDEPQ = false;
             config.HuntLockDEPQv1 = false;
@@ -75,9 +69,9 @@ namespace Benchmark
             config.LotanShavitSkipListv2 = false;
             config.RelaxedLotanShavitSkipList = false;
 
-            config.HellerSkipListv1 = true;
-            config.HellerSkipListv2 = true;
-            config.SprayList = false;
+            config.HellerSkipListv1 = false;
+            config.HellerSkipListv2 = false;
+            config.SprayList = true;
 
 
             RunBenchmark();// Run the benchmark
@@ -298,7 +292,7 @@ namespace Benchmark
                     }
                     datafile.Close();
 
-                    gnuPlotScript.Log("set title \"Abacus - " + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / " + config.CurrentPercentageGetMin + "% FindMin /" + +config.CurrentPercentageGetMax + "% FindMax" + "/");
+                    gnuPlotScript.Log("set title \"" + config.CurrentPercentageInsert + "% Insert / " + config.CurrentPercentageDeleteMax + "% DeleteMax / " + config.CurrentPercentageDeleteMin + "% DeleteMin / " + config.CurrentPercentageGetMin + "% FindMin /" /*+config.CurrentPercentageGetMax + "% FindMax" + "/"*/);
                     gnuPlotScript.Log("set terminal png truecolor size 800,600");
                     gnuPlotScript.Log("set xlabel \"Threads\"");
                     gnuPlotScript.Log("set ylabel \"Throughput\"");
