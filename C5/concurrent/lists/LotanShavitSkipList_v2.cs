@@ -222,7 +222,6 @@ namespace C5.concurrent
                 node1 = header;
                 for (int i = maxLevel - 1; i >= 0; i--)
                 {
-                    //no 
                     while (!(node2 = node1.forward[i]).tail)
                     {
                         node1 = node2;
@@ -339,9 +338,10 @@ namespace C5.concurrent
                             //Interlocked.Exchange(ref node1.pid, Thread.CurrentThread.ManagedThreadId);
                             break;
                         }
+                        node1 = node1.forward[0];
                     }
                    
-                    node1 = node1.forward[0];
+                    
                 }
                 if (!node1.Equals(header))
                 {
